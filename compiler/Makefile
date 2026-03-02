@@ -47,7 +47,7 @@ generated/ifccVisitor.cpp: generated/ifccParser.cpp
 generated/ifccBaseVisitor.cpp: generated/ifccParser.cpp
 generated/ifccParser.cpp: ifcc.g4
 	@mkdir -p generated
-	java -jar $(ANTLRJAR) -visitor -no-listener -Dlanguage=Cpp -o generated ifcc.g4
+	antlr4 -visitor -no-listener -Dlanguage=Cpp -o generated ifcc.g4
 
 # prevent automatic cleanup of "intermediate" files like ifccLexer.cpp etc
 .PRECIOUS: generated/ifcc%.cpp   
@@ -60,9 +60,10 @@ FILE ?= ../tests/testfiles/1_return42.c
 
 gui:
 	@mkdir -p generated build
-	java -jar $(ANTLRJAR) -Dlanguage=Java -o generated ifcc.g4
-	javac -cp $(ANTLRJAR) -d build generated/*.java
-	java -cp $(ANTLRJAR):build org.antlr.v4.gui.TestRig ifcc axiom -gui $(FILE)
+	ANTLR_SYSJAR=/usr/share/java/antlr4.jar
+	java -jar $(ANTLR_SYSJAR) -Dlanguage=Java -o generated ifcc.g4
+	javac -cp $(ANTLR_SYSJAR) -d build generated/*.java
+	java -cp $(ANTLR_SYSJAR):build org.antlr.v4.gui.TestRig ifcc axiom -gui $(FILE)
 
 ##########################################
 # delete all machine-generated files
