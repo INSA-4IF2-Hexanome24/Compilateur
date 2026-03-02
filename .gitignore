@@ -19,8 +19,6 @@ out
 # Per-project config (each student may have their own)
 **/config.mk
 
-/compiler/Makefile
-
 # Common editor/OS files
 *~
 *.swp
