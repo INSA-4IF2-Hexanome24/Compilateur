@@ -1,0 +1,42 @@
+# Ignore build artifacts and generated files
+build/
+generated/
+
+# Compiled object files, libraries and executables
+*.o
+*.d
+*.a
+*.so
+*.dll
+*.exe
+*.s
+ifcc
+out
+
+# ANTLR generated Java classes (if present)
+*.class
+
+# Per-project config (each student may have their own)
+/compiler/config.mk
+
+# Common editor/OS files
+*~
+*.swp
+.DS_Store
+.vscode/
+.idea/
+*.iml
+
+# CMake files and temporary build files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Logs and caches
+*.log
+__pycache__/
+
+# macOS Spotlight
+.Spotlight-V100
+
+# End of .gitignore
