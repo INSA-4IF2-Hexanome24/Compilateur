@@ -17,7 +17,7 @@ out
 *.class
 
 # Per-project config (each student may have their own)
-/compiler/config.mk
+**/config.mk
 
 # Common editor/OS files
 *~
