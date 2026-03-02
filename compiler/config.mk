@@ -1,3 +1,3 @@
-ANTLRJAR=/home/$(USER)/antlr4-install/antlr-4.13.2-complete.jar
-ANTLRINC=/usr/include/antlr4-runtime
-ANTLRLIB=-lantlr4-runtime
+ANTLRJAR=/opt/homebrew/Cellar/antlr/4.13.2/antlr-4.13.2-complete.jar
+ANTLRINC=/opt/homebrew/opt/antlr4-cpp-runtime/include/antlr4-runtime
+ANTLRLIB=-L/opt/homebrew/opt/antlr4-cpp-runtime/lib -lantlr4-runtime
