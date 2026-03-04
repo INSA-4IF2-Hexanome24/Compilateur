@@ -20,6 +20,11 @@ public:
     virtual antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
     virtual antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override;
+    virtual antlrcpp::Any visitEqExpr(ifccParser::EqExprContext *ctx) override;
+    virtual antlrcpp::Any visitNeExpr(ifccParser::NeExprContext *ctx) override;
+    virtual antlrcpp::Any visitLtExpr(ifccParser::LtExprContext *ctx) override;
+    virtual antlrcpp::Any visitGtExpr(ifccParser::GtExprContext *ctx) override;
+    virtual antlrcpp::Any visitParenExpr(ifccParser::ParenExprContext *ctx) override;
 
 private:
     int nextIndex = -4;           // next available stack slot

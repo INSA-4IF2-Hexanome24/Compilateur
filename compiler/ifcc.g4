@@ -9,14 +9,19 @@ stmt
     | assign_stmt
     ;
 
-decl_stmt   : 'int' VAR ';' ;
+decl_stmt   : 'int' VAR ('=' expr)? ';' ;
 assign_stmt : VAR '=' expr ';' ;
 
 return_stmt : RETURN expr ';' ;
 
 expr
-    : CONST   # constExpr
-    | VAR     # varExpr
+    : CONST                        # constExpr
+    | VAR                          # varExpr
+    | expr '==' expr               # eqExpr
+    | expr '!=' expr               # neExpr
+    | expr '<' expr                # ltExpr
+    | expr '>' expr                # gtExpr
+    | '(' expr ')'                 # parenExpr
     ;
 
 RETURN : 'return' ;

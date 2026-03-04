@@ -35,6 +35,10 @@ antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *c
 
     symbolTable[name] = nextIndex;
     nextIndex -= 4;   // each int occupies 4 bytes
+
+    if (ctx->expr()) {
+        visit(ctx->expr());
+    }
     return 0;
 }
 
@@ -70,5 +74,39 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
     }
 
     used.insert(name);
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitEqExpr(ifccParser::EqExprContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitNeExpr(ifccParser::NeExprContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitLtExpr(ifccParser::LtExprContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitGtExpr(ifccParser::GtExprContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitParenExpr(ifccParser::ParenExprContext *ctx)
+{
+    visit(ctx->expr());
     return 0;
 }
