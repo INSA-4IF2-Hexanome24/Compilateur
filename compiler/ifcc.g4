@@ -11,8 +11,9 @@ stmt
   | assign_stmt
   ;
 
+// Declaration with optional initialization: int a; or int a = 42;
 decl_stmt
-  : INT VAR SEMI
+  : INT VAR (ASSIGN expr)? SEMI
   ;
 
 assign_stmt

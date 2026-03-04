@@ -1,4 +1,5 @@
 #include "CodeGenVisitor.h"
+
 #include <iostream>
 
 static void pushRax()
@@ -14,8 +15,9 @@ static void popRcx()
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
     int frameSize = (int)symbolTable.size() * 4;
-    if (frameSize % 16 != 0)
+    if (frameSize % 16 != 0) {
         frameSize += 16 - (frameSize % 16);
+    }
 
 #ifdef __APPLE__
     std::cout << ".globl _main\n";
@@ -27,8 +29,9 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
     std::cout << "    pushq %rbp\n";
     std::cout << "    movq  %rsp, %rbp\n";
-    if (frameSize > 0)
+    if (frameSize > 0) {
         std::cout << "    subq  $" << frameSize << ", %rsp\n";
+    }
 
     visitChildren(ctx);
 
@@ -39,8 +42,22 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitAssign_stmt(
-    ifccParser::Assign_stmtContext *ctx)
+// Declaration with optional initialization: int a; or int a = expr;
+antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
+{
+    if (ctx->expr() == nullptr) {
+        return 0;
+    }
+
+    visit(ctx->expr()); // result in %eax
+    std::string name = ctx->VAR()->getText();
+    int idx = symbolTable[name];
+    std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
+    return 0;
+}
+
+// x = expr;  → evaluate expr into %eax, then store at x's slot
+antlrcpp::Any CodeGenVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
     visit(ctx->expr());
     std::string name = ctx->VAR()->getText();
@@ -113,7 +130,6 @@ antlrcpp::Any CodeGenVisitor::visitEqExpr(ifccParser::EqExprContext *ctx)
     visit(operands[0]);
 
     for (size_t i = 1; i < operands.size(); i++) {
-        // operator is at child index 2*i - 1
         std::string op = ctx->children[2 * i - 1]->getText();
 
         pushRax();
@@ -121,10 +137,11 @@ antlrcpp::Any CodeGenVisitor::visitEqExpr(ifccParser::EqExprContext *ctx)
         popRcx();
 
         std::cout << "    cmpl  %eax, %ecx\n";
-        if (op == "==")
+        if (op == "==") {
             std::cout << "    sete  %al\n";
-        else
+        } else {
             std::cout << "    setne %al\n";
+        }
         std::cout << "    movzbl %al, %eax\n";
     }
     return 0;
@@ -144,10 +161,11 @@ antlrcpp::Any CodeGenVisitor::visitRelExpr(ifccParser::RelExprContext *ctx)
         popRcx();
 
         std::cout << "    cmpl  %eax, %ecx\n";
-        if (op == "<")
+        if (op == "<") {
             std::cout << "    setl  %al\n";
-        else
+        } else {
             std::cout << "    setg  %al\n";
+        }
         std::cout << "    movzbl %al, %eax\n";
     }
     return 0;
@@ -192,14 +210,15 @@ antlrcpp::Any CodeGenVisitor::visitMulExpr(ifccParser::MulExprContext *ctx)
             popRcx();
             std::cout << "    imull %ecx, %eax\n";
         } else if (op == "/" || op == "%") {
-            pushRax();              // save left
-            visit(operands[i]);    // right → %eax
+            pushRax(); // save left
+            visit(operands[i]); // right -> %eax
             std::cout << "    movl  %eax, %ecx\n"; // divisor in %ecx
-            std::cout << "    popq  %rax\n";        // left → %eax
-            std::cout << "    cltd\n";              // sign-extend eax→edx:eax
-            std::cout << "    idivl %ecx\n";        // eax=quot, edx=rem
-            if (op == "%")
+            std::cout << "    popq  %rax\n"; // left -> %eax
+            std::cout << "    cltd\n"; // sign-extend eax->edx:eax
+            std::cout << "    idivl %ecx\n"; // eax=quot, edx=rem
+            if (op == "%") {
                 std::cout << "    movl  %edx, %eax\n";
+            }
         }
     }
     return 0;
