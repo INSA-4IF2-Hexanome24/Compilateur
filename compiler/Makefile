@@ -18,13 +18,8 @@ OBJECTS=build/ifccBaseVisitor.o \
 	build/ifccVisitor.o \
 	build/ifccParser.o \
 	build/main.o \
-<<<<<<< HEAD
 	build/CodeGenVisitor.o \
 	build/SymbolTableVisitor.o
-=======
-	build/SymbolTableVisitor.o \
-	build/CodeGenVisitor.o
->>>>>>> 569d447c4d39ce244fa08ddf8fcd96340906064e
 
 ifcc: $(OBJECTS)
 	@mkdir -p build
