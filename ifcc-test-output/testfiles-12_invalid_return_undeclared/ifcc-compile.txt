@@ -1,0 +1,6 @@
+error: variable 'a' used before declaration
+=== Symbol Table ===
+====================
+error: semantic errors found, aborting compilation
+
+exit status: 1

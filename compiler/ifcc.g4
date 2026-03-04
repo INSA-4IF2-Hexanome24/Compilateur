@@ -13,7 +13,16 @@ stmt
 
 // Declaration with optional initialization: int a; or int a = 42;
 decl_stmt
-  : INT VAR (ASSIGN expr)? SEMI
+  : INT var_decl_list SEMI
+  ;
+
+// Liste de variables, chacune optionnellement initialisée
+var_decl_list
+  : var_decl (COMMA var_decl)*
+  ;
+
+var_decl
+  : VAR (ASSIGN expr)?
   ;
 
 assign_stmt
@@ -103,10 +112,11 @@ RPAREN : ')';
 LBRACE : '{';
 RBRACE : '}';
 SEMI   : ';';
+COMMA : ',';
 
 CONST  : [0-9]+;
 VAR    : [a-zA-Z_][a-zA-Z_0-9]*;
 
 COMMENT   : '/*' .*? '*/' -> skip;
 DIRECTIVE : '#' .*? '\n'  -> skip;
-WS        : [ \t\r\n]     -> skip;
+WS        : [ \t\r\n]+-> skip;

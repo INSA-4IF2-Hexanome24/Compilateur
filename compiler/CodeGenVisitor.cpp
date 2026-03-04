@@ -45,14 +45,20 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 // Declaration with optional initialization: int a; or int a = expr;
 antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 {
-    if (ctx->expr() == nullptr) {
-        return 0;
+    auto varListCtx = ctx->var_decl_list();
+
+    for (auto varDeclCtx : varListCtx->var_decl()) {
+
+        // Si la variable a une initialisation
+        if (varDeclCtx->expr() != nullptr) {
+            visit(varDeclCtx->expr()); // résultat dans %eax
+
+            std::string name = varDeclCtx->VAR()->getText();
+            int idx = symbolTable[name];
+            std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
+        }
     }
 
-    visit(ctx->expr()); // result in %eax
-    std::string name = ctx->VAR()->getText();
-    int idx = symbolTable[name];
-    std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
     return 0;
 }
 

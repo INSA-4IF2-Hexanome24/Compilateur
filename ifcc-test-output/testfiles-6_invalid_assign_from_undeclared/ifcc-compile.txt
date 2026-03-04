@@ -1,0 +1,7 @@
+error: variable 'b' used before declaration
+=== Symbol Table ===
+  a  ->  [rbp-4]
+====================
+error: semantic errors found, aborting compilation
+
+exit status: 1
