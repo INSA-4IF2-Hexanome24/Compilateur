@@ -49,9 +49,9 @@ eqExpr
   ;
 
 relExpr
-  : addExpr (op=(LT | GT) addExpr)*
+  : addExpr (op=(LT | GT) addExpr)?
   ;
-
+  
 addExpr
   : mulExpr (op=(PLUS | MINUS) mulExpr)*
   ;
