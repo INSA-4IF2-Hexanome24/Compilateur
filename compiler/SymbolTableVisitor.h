@@ -1,9 +1,10 @@
 #pragma once
 
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
-#include <iostream>
+
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
 
@@ -15,6 +16,7 @@ public:
     // Returns false if any semantic error was found
     bool success = true;
 
+<<<<<<< HEAD
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) override;
     virtual antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) override;
@@ -25,8 +27,16 @@ public:
     virtual antlrcpp::Any visitLtExpr(ifccParser::LtExprContext *ctx) override;
     virtual antlrcpp::Any visitGtExpr(ifccParser::GtExprContext *ctx) override;
     virtual antlrcpp::Any visitParenExpr(ifccParser::ParenExprContext *ctx) override;
+=======
+    antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
+    antlrcpp::Any visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) override;
+    antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) override;
+    antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
+
+    antlrcpp::Any visitPrimary(ifccParser::PrimaryContext *ctx) override;
+>>>>>>> 569d447c4d39ce244fa08ddf8fcd96340906064e
 
 private:
-    int nextIndex = -4;           // next available stack slot
-    std::set<std::string> used;   // variables that have been read
+    int nextIndex = -4; // next available stack slot
+    std::set<std::string> used; // variables that have been read
 };
