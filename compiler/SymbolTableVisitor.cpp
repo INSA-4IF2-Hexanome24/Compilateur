@@ -59,16 +59,20 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitPrimary(ifccParser::PrimaryContext *ctx)
 {
-    std::string name = ctx->VAR()->getText();
+    if (ctx->VAR() != nullptr) {
+        std::string name = ctx->VAR()->getText();
 
-    if (!symbolTable.count(name)) {
-        std::cerr << "error: variable '" << name << "' used before declaration\n";
-        success = false;
-        return 0;
+        if (!symbolTable.count(name)) {
+            std::cerr << "error: variable '" << name
+                      << "' used before declaration\n";
+            success = false;
+            return 0;
+        }
+
+        used.insert(name);
     }
 
-    used.insert(name);
-    return 0;
-}
+    return visitChildren(ctx);
+}   

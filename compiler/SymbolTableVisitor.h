@@ -19,7 +19,7 @@ public:
     virtual antlrcpp::Any visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) override;
     virtual antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override;
+    virtual antlrcpp::Any visitPrimary(ifccParser::PrimaryContext *ctx) override;
 
 private:
     int nextIndex = -4;           // next available stack slot

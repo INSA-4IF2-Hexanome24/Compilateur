@@ -18,6 +18,7 @@ OBJECTS=build/ifccBaseVisitor.o \
 	build/ifccVisitor.o \
 	build/ifccParser.o \
 	build/main.o \
+	build/SymbolTableVisitor.o \
 	build/CodeGenVisitor.o
 
 ifcc: $(OBJECTS)
@@ -47,8 +48,7 @@ generated/ifccVisitor.cpp: generated/ifccParser.cpp
 generated/ifccBaseVisitor.cpp: generated/ifccParser.cpp
 generated/ifccParser.cpp: ifcc.g4
 	@mkdir -p generated
-	antlr4 -visitor -no-listener -Dlanguage=Cpp -o generated ifcc.g4
-
+	$(ANTLR) -visitor -no-listener -Dlanguage=Cpp -o generated ifcc.g4
 # prevent automatic cleanup of "intermediate" files like ifccLexer.cpp etc
 .PRECIOUS: generated/ifcc%.cpp   
 
