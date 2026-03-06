@@ -39,5 +39,5 @@ __pycache__/
 
 # macOS Spotlight
 .Spotlight-V100
-
+ifcc-test-output/
 # End of .gitignore
