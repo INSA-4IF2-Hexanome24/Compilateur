@@ -215,17 +215,7 @@ antlrcpp::Any CodeGenVisitor::visitMulExpr(ifccParser::MulExprContext *ctx)
             visit(operands[i]);
             popRcx();
             std::cout << "    imull %ecx, %eax\n";
-        } else if (op == "/" || op == "%") {
-            pushRax(); // save left
-            visit(operands[i]); // right -> %eax
-            std::cout << "    movl  %eax, %ecx\n"; // divisor in %ecx
-            std::cout << "    popq  %rax\n"; // left -> %eax
-            std::cout << "    cltd\n"; // sign-extend eax->edx:eax
-            std::cout << "    idivl %ecx\n"; // eax=quot, edx=rem
-            if (op == "%") {
-                std::cout << "    movl  %edx, %eax\n";
-            }
-        }
+        } 
     }
     return 0;
 }
