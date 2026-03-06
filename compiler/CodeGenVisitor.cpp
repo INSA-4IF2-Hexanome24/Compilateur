@@ -42,38 +42,23 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     return 0;
 }
 
-<<<<<<< HEAD
-// Declaration with optional initialization: int a; or int a=42;
-antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
-{
-    std::string name = ctx->VAR()->getText();
-    
-    // If there is initialization (int a=42;), we evalue expr et on garde la variable
-    if (ctx->expr()) {
-        visit(ctx->expr());  // resultat dans %eax
-        int idx = symbolTable[name];
-        std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
-    }
-    
-    return 0;
-}
-
-
-// x = expr  →  evaluate expr into %eax, then store at x's slot
-antlrcpp::Any CodeGenVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
-=======
 // Declaration with optional initialization: int a; or int a = expr;
 antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
->>>>>>> 569d447c4d39ce244fa08ddf8fcd96340906064e
 {
-    if (ctx->expr() == nullptr) {
-        return 0;
+    auto varListCtx = ctx->var_decl_list();
+
+    for (auto varDeclCtx : varListCtx->var_decl()) {
+
+        // Si la variable a une initialisation
+        if (varDeclCtx->expr() != nullptr) {
+            visit(varDeclCtx->expr()); // résultat dans %eax
+
+            std::string name = varDeclCtx->VAR()->getText();
+            int idx = symbolTable[name];
+            std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
+        }
     }
 
-    visit(ctx->expr()); // result in %eax
-    std::string name = ctx->VAR()->getText();
-    int idx = symbolTable[name];
-    std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
     return 0;
 }
 
@@ -129,61 +114,6 @@ antlrcpp::Any CodeGenVisitor::visitXorExpr(ifccParser::XorExprContext *ctx)
     return 0;
 }
 
-<<<<<<< HEAD
-// Comparison: expr == expr
-antlrcpp::Any CodeGenVisitor::visitEqExpr(ifccParser::EqExprContext *ctx)
-{
-    visit(ctx->expr(0));          // left expr → %eax
-    std::cout << "    movl  %eax, %ecx\n";  // save left in %ecx
-    visit(ctx->expr(1));          // right expr → %eax
-    std::cout << "    cmpl  %eax, %ecx\n";  // compare left (ecx) with right (eax)
-    std::cout << "    sete  %al\n";         // set %al = 1 if equal
-    std::cout << "    movzbl %al, %eax\n";  // zero-extend %al to %eax
-    return 0;
-}
-
-// Comparison: expr != expr
-antlrcpp::Any CodeGenVisitor::visitNeExpr(ifccParser::NeExprContext *ctx)
-{
-    visit(ctx->expr(0));          // left expr → %eax
-    std::cout << "    movl  %eax, %ecx\n";  // save left in %ecx
-    visit(ctx->expr(1));          // right expr → %eax
-    std::cout << "    cmpl  %eax, %ecx\n";  // compare left (ecx) with right (eax)
-    std::cout << "    setne %al\n";         // set %al = 1 if not equal
-    std::cout << "    movzbl %al, %eax\n";  // zero-extend %al to %eax
-    return 0;
-}
-
-// Comparison: expr < expr
-antlrcpp::Any CodeGenVisitor::visitLtExpr(ifccParser::LtExprContext *ctx)
-{
-    visit(ctx->expr(0));          // left expr → %eax
-    std::cout << "    movl  %eax, %ecx\n";  // save left in %ecx
-    visit(ctx->expr(1));          // right expr → %eax
-    std::cout << "    cmpl  %eax, %ecx\n";  // compare left (ecx) with right (eax)
-    std::cout << "    setl  %al\n";         // set %al = 1 if left < right
-    std::cout << "    movzbl %al, %eax\n";  // zero-extend %al to %eax
-    return 0;
-}
-
-// Comparison: expr > expr
-antlrcpp::Any CodeGenVisitor::visitGtExpr(ifccParser::GtExprContext *ctx)
-{
-    visit(ctx->expr(0));          // left expr → %eax
-    std::cout << "    movl  %eax, %ecx\n";  // save left in %ecx
-    visit(ctx->expr(1));          // right expr → %eax
-    std::cout << "    cmpl  %eax, %ecx\n";  // compare left (ecx) with right (eax)
-    std::cout << "    setg  %al\n";         // set %al = 1 if left > right
-    std::cout << "    movzbl %al, %eax\n";  // zero-extend %al to %eax
-    return 0;
-}
-
-// Parenthesized expression
-antlrcpp::Any CodeGenVisitor::visitParenExpr(ifccParser::ParenExprContext *ctx)
-{
-    visit(ctx->expr());
-    return 0;
-=======
 // andExpr: eqExpr ( '&' eqExpr )*
 antlrcpp::Any CodeGenVisitor::visitAndExpr(ifccParser::AndExprContext *ctx)
 {
@@ -285,17 +215,7 @@ antlrcpp::Any CodeGenVisitor::visitMulExpr(ifccParser::MulExprContext *ctx)
             visit(operands[i]);
             popRcx();
             std::cout << "    imull %ecx, %eax\n";
-        } else if (op == "/" || op == "%") {
-            pushRax(); // save left
-            visit(operands[i]); // right -> %eax
-            std::cout << "    movl  %eax, %ecx\n"; // divisor in %ecx
-            std::cout << "    popq  %rax\n"; // left -> %eax
-            std::cout << "    cltd\n"; // sign-extend eax->edx:eax
-            std::cout << "    idivl %ecx\n"; // eax=quot, edx=rem
-            if (op == "%") {
-                std::cout << "    movl  %edx, %eax\n";
-            }
-        }
+        } 
     }
     return 0;
 }
@@ -338,5 +258,4 @@ antlrcpp::Any CodeGenVisitor::visitPrimary(ifccParser::PrimaryContext *ctx)
     }
 
     return visit(ctx->expr());
->>>>>>> 569d447c4d39ce244fa08ddf8fcd96340906064e
 }

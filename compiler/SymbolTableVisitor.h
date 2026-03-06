@@ -16,25 +16,12 @@ public:
     // Returns false if any semantic error was found
     bool success = true;
 
-<<<<<<< HEAD
-    virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
-    virtual antlrcpp::Any visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override;
-    virtual antlrcpp::Any visitEqExpr(ifccParser::EqExprContext *ctx) override;
-    virtual antlrcpp::Any visitNeExpr(ifccParser::NeExprContext *ctx) override;
-    virtual antlrcpp::Any visitLtExpr(ifccParser::LtExprContext *ctx) override;
-    virtual antlrcpp::Any visitGtExpr(ifccParser::GtExprContext *ctx) override;
-    virtual antlrcpp::Any visitParenExpr(ifccParser::ParenExprContext *ctx) override;
-=======
     antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     antlrcpp::Any visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) override;
     antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) override;
     antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
 
     antlrcpp::Any visitPrimary(ifccParser::PrimaryContext *ctx) override;
->>>>>>> 569d447c4d39ce244fa08ddf8fcd96340906064e
 
 private:
     int nextIndex = -4; // next available stack slot

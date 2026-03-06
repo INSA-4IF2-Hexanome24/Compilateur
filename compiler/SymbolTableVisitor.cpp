@@ -24,34 +24,29 @@ antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(
-    ifccParser::Decl_stmtContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 {
-    std::string name = ctx->VAR()->getText();
+    // Parcours de toutes les variables déclarées
+    auto varListCtx = ctx->var_decl_list();
+    for (auto varDeclCtx : varListCtx->var_decl()) {
+        std::string name = varDeclCtx->VAR()->getText();
 
-    if (symbolTable.count(name)) {
-        std::cerr << "error: variable '" << name
-                  << "' declared more than once\n";
-        success = false;
-        return 0;
+        if (symbolTable.count(name)) {
+            std::cerr << "error: variable '" << name
+                      << "' declared more than once\n";
+            success = false;
+            continue;  // passe à la prochaine variable
+        }
+
+        symbolTable[name] = nextIndex;
+        nextIndex -= 4; // chaque int occupe 4 bytes
+
+        // Si initialisation présente, visite l'expression
+        if (varDeclCtx->expr() != nullptr) {
+            visit(varDeclCtx->expr());
+        }
     }
 
-    symbolTable[name] = nextIndex;
-<<<<<<< HEAD
-    nextIndex -= 4;   // each int occupies 4 bytes
-
-    if (ctx->expr()) {
-        visit(ctx->expr());
-    }
-=======
-    nextIndex -= 4; // each int occupies 4 bytes
-
-    // If there is an initializer, visit it (to validate vars used in expr).
-    if (ctx->expr() != nullptr) {
-        visit(ctx->expr());
-    }
-
->>>>>>> 569d447c4d39ce244fa08ddf8fcd96340906064e
     return 0;
 }
 
@@ -95,44 +90,5 @@ antlrcpp::Any SymbolTableVisitor::visitPrimary(
         used.insert(name);
     }
 
-<<<<<<< HEAD
-    used.insert(name);
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitEqExpr(ifccParser::EqExprContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitNeExpr(ifccParser::NeExprContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitLtExpr(ifccParser::LtExprContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitGtExpr(ifccParser::GtExprContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitParenExpr(ifccParser::ParenExprContext *ctx)
-{
-    visit(ctx->expr());
-    return 0;
-=======
     return visitChildren(ctx);
->>>>>>> 569d447c4d39ce244fa08ddf8fcd96340906064e
 }
