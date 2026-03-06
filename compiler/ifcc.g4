@@ -3,7 +3,7 @@ grammar ifcc;
 axiom : prog EOF ;
 
 prog
-  : INT MAIN LPAREN RPAREN LBRACE stmt* return_stmt RBRACE
+  : 'int' 'main' '(' ')' '{' stmt* return_stmt '}'
   ;
 
 stmt
@@ -13,24 +13,24 @@ stmt
 
 // Declaration with optional initialization: int a; or int a = 42;
 decl_stmt
-  : INT var_decl_list SEMI
+  : 'int' var_decl_list ';'
   ;
 
 // Liste de variables, chacune optionnellement initialisée
 var_decl_list
-  : var_decl (COMMA var_decl)*
+  : var_decl (',' var_decl)*
   ;
 
 var_decl
-  : VAR (ASSIGN expr)?
+  : VAR ('=' expr)?
   ;
 
 assign_stmt
-  : VAR ASSIGN expr SEMI
+  : VAR '=' expr ';'
   ;
 
 return_stmt
-  : RETURN expr SEMI
+  : 'return' expr ';'
   ;
 
 // ----------------------
@@ -42,77 +42,47 @@ expr
   ;
 
 orExpr
-  : xorExpr (op=BOR xorExpr)*
+  : xorExpr (op='|' xorExpr)*
   ;
 
 xorExpr
-  : andExpr (op=BXOR andExpr)*
+  : andExpr (op='^' andExpr)*
   ;
 
 andExpr
-  : eqExpr (op=BAND eqExpr)*
+  : eqExpr (op='&' eqExpr)*
   ;
 
 eqExpr
-  : relExpr (op=(EQ | NEQ) relExpr)*
+  : relExpr (op=('==' | '!=') relExpr)*
   ;
 
 relExpr
-  : addExpr (op=(LT | GT) addExpr)?
+  : addExpr (op=('<' | '>') addExpr)?
   ;
   
 addExpr
-  : mulExpr (op=(PLUS | MINUS) mulExpr)*
+  : mulExpr (op=('+' | '-') mulExpr)*
   ;
 
 mulExpr
-  : unaryExpr (op=(STAR | SLASH | PERCENT) unaryExpr)*
+  : unaryExpr (op=('*' | '/' | '%') unaryExpr)*
   ;
 
 unaryExpr
-  : op=(NOT | MINUS) unaryExpr
+  : op=('!' | '-') unaryExpr
   | primary
   ;
 
 primary
   : CONST
   | VAR
-  | LPAREN expr RPAREN
+  | '(' expr ')'
   ;
 
 // ----------------------
 // Lexer
 // ----------------------
-
-INT    : 'int';
-RETURN : 'return';
-MAIN   : 'main';
-
-EQ     : '==';
-NEQ    : '!=';
-ASSIGN : '=';
-
-LT     : '<';
-GT     : '>';
-
-PLUS   : '+';
-MINUS  : '-';
-STAR   : '*';
-SLASH  : '/';
-PERCENT: '%';
-
-BAND   : '&';
-BXOR   : '^';
-BOR    : '|';
-
-NOT    : '!';
-
-LPAREN : '(';
-RPAREN : ')';
-LBRACE : '{';
-RBRACE : '}';
-SEMI   : ';';
-COMMA : ',';
 
 CONST  : [0-9]+;
 VAR    : [a-zA-Z_][a-zA-Z_0-9]*;
