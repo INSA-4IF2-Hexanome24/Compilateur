@@ -1,6 +1,0 @@
-=== Symbol Table ===
-  x  ->  [rbp-4]
-  y  ->  [rbp-8]
-====================
-
-exit status: 0

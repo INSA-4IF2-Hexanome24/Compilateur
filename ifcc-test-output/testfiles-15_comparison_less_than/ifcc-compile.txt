@@ -1,4 +1,0 @@
-=== Symbol Table ===
-====================
-
-exit status: 0
