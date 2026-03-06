@@ -9,7 +9,7 @@ stmt
     | assign_stmt
     ;
 
-decl_stmt   : 'int' VAR ';' ;
+decl_stmt : 'int' VAR ('=' expr)? ';' ;
 assign_stmt : VAR '=' expr ';' ;
 
 return_stmt : RETURN expr ';' ;

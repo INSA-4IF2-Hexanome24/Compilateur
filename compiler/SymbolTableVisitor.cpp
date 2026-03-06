@@ -26,6 +26,11 @@ antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
 antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 {
     std::string name = ctx->VAR()->getText();
+    ifccParser::ExprContext *expr = ctx->expr();
+
+    if (expr) {
+        visit(expr);
+    }
 
     if (symbolTable.count(name)) {
         std::cerr << "error: variable '" << name << "' declared more than once\n";

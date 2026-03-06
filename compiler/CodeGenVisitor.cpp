@@ -64,3 +64,15 @@ antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
     std::cout << "    movl  " << idx << "(%rbp), %eax\n";
     return 0;
 }
+
+antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
+{
+    // S'il y a une expression d'initialisation
+    if (ctx->expr()) {
+        visit(ctx->expr());   // résultat dans %eax
+        int idx = symbolTable[ctx->VAR()->getText()];
+        std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
+    }
+    // Sinon : variable non initialisée, on ne génère rien
+    return 0;
+}
