@@ -42,8 +42,13 @@ return_stmt
 // Expressions
 // ----------------------
 
+
+//attention a l'ordre (inverse)
+//https://en.cppreference.com/w/c/language/operator_precedence.html 
+//exemple meme niveau OP=('*'|'%')
+
 expr
-  : expr '*' expr        # mult
+  : expr '*' expr        # multdiv
   | expr '/' expr        # div
   | expr '%' expr        # mod
   | expr '+' expr        # plus
