@@ -2,6 +2,13 @@
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
+    for (int i = 0; i<=19; i++ )
+    {
+        std::string name = "_temp"+std::to_string(i);
+        symbolTable[name] = nextIndex;
+        nextIndex -=4; 
+    }
+
     // Visit all children (stmts + return)
     visitChildren(ctx);
 

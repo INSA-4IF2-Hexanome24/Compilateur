@@ -98,10 +98,11 @@ antlrcpp::Any CodeGenVisitor::visitOrExpr(ifccParser::OrExprContext *ctx)
     visit(operands[0]);
 
     for (size_t i = 1; i < operands.size(); i++) {
-        setTempVar(numTemps);
-        visit(operands[i]);
-        getTempVar(numTemps);
-        numTemps++;
+                int mytemp = numTemps;
+                setTempVar(numTemps);
+                numTemps++;
+                visit(operands[i]);
+                getTempVar(mytemp);
         std::cout << "    orl   %ecx, %eax\n";
     }
     return 0;
@@ -114,10 +115,11 @@ antlrcpp::Any CodeGenVisitor::visitXorExpr(ifccParser::XorExprContext *ctx)
     visit(operands[0]);
 
     for (size_t i = 1; i < operands.size(); i++) {
-        setTempVar(numTemps);
-        visit(operands[i]);
-        getTempVar(numTemps);
-        numTemps++;
+                int mytemp = numTemps;
+                setTempVar(numTemps);
+                numTemps++;
+                visit(operands[i]);
+                getTempVar(mytemp);
         std::cout << "    xorl  %ecx, %eax\n";
     }
     return 0;
@@ -130,10 +132,11 @@ antlrcpp::Any CodeGenVisitor::visitAndExpr(ifccParser::AndExprContext *ctx)
     visit(operands[0]);
 
     for (size_t i = 1; i < operands.size(); i++) {
-        setTempVar(numTemps);
-        visit(operands[i]);
-        getTempVar(numTemps);
-        numTemps++;
+                int mytemp = numTemps;
+                setTempVar(numTemps);
+                numTemps++;
+                visit(operands[i]);
+                getTempVar(mytemp);
         std::cout << "    andl  %ecx, %eax\n";
     }
     return 0;
@@ -148,10 +151,11 @@ antlrcpp::Any CodeGenVisitor::visitEqExpr(ifccParser::EqExprContext *ctx)
     for (size_t i = 1; i < operands.size(); i++) {
         std::string op = ctx->children[2 * i - 1]->getText();
 
-        setTempVar(numTemps);
-        visit(operands[i]);
-        getTempVar(numTemps);
-        numTemps++;
+                int mytemp = numTemps;
+                setTempVar(numTemps);
+                numTemps++;
+                visit(operands[i]);
+                getTempVar(mytemp);
 
         std::cout << "    cmpl  %eax, %ecx\n";
         if (op == "==") {
@@ -173,10 +177,11 @@ antlrcpp::Any CodeGenVisitor::visitRelExpr(ifccParser::RelExprContext *ctx)
     for (size_t i = 1; i < operands.size(); i++) {
         std::string op = ctx->children[2 * i - 1]->getText();
 
-        setTempVar(numTemps);
-        visit(operands[i]);
-        getTempVar(numTemps);
-        numTemps++;
+                int mytemp = numTemps;
+                setTempVar(numTemps);
+                numTemps++;
+                visit(operands[i]);
+                getTempVar(mytemp);
 
         std::cout << "    cmpl  %eax, %ecx\n";
         if (op == "<") {
@@ -198,10 +203,11 @@ antlrcpp::Any CodeGenVisitor::visitAddExpr(ifccParser::AddExprContext *ctx)
     for (size_t i = 1; i < operands.size(); i++) {
         std::string op = ctx->children[2 * i - 1]->getText();
 
-        setTempVar(numTemps);
-        visit(operands[i]);
-        getTempVar(numTemps);
-        numTemps++;
+                int mytemp = numTemps;
+                setTempVar(numTemps);
+                numTemps++;
+                visit(operands[i]);
+                getTempVar(mytemp);
 
         if (op == "+") {
             std::cout << "    addl  %ecx, %eax\n";
@@ -224,10 +230,11 @@ antlrcpp::Any CodeGenVisitor::visitMulExpr(ifccParser::MulExprContext *ctx)
         std::string op = ctx->children[2 * i - 1]->getText();
 
         if (op == "*") {
+                int mytemp = numTemps;
                 setTempVar(numTemps);
-                visit(operands[i]);
-                getTempVar(numTemps);
                 numTemps++;
+                visit(operands[i]);
+                getTempVar(mytemp);
             std::cout << "    imull %ecx, %eax\n";
         } 
     }
