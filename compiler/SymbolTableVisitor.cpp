@@ -84,12 +84,6 @@ antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(
-    ifccParser::Return_stmtContext *ctx)
-{
-    visit(ctx->expr());
-    return 0;
-}
 
 antlrcpp::Any SymbolTableVisitor::visitMult(ifccParser::MultContext *ctx)
 {
@@ -187,31 +181,6 @@ antlrcpp::Any SymbolTableVisitor::visitBor(ifccParser::BorContext *ctx)
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitNotExpr(
-    ifccParser::NotExprContext *ctx)
-{
-    visit(ctx->expr());
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitUnaryMinus(
-    ifccParser::UnaryMinusContext *ctx)
-{
-    visit(ctx->expr());
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitParens(ifccParser::ParensContext *ctx)
-{
-    visit(ctx->expr());
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitConstExpr(
-    ifccParser::ConstExprContext *ctx)
-{
-    return 0;
-}
 
 antlrcpp::Any SymbolTableVisitor::visitVarExpr(
     ifccParser::VarExprContext *ctx)
