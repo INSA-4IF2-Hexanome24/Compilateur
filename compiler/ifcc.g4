@@ -43,23 +43,18 @@ return_stmt
 // ----------------------
 
 expr
-  : expr '*' expr        # mult
-  | expr '/' expr        # div
-  | expr '%' expr        # mod
-  | expr '+' expr        # plus
-  | expr '-' expr        # minus
-  | expr '<' expr        # lt
-  | expr '>' expr        # gt
-  | expr '==' expr       # eq
-  | expr '!=' expr       # neq
-  | expr '&' expr        # band
-  | expr '^' expr        # bxor
-  | expr '|' expr        # bor
-  | '!' expr             # notExpr
-  | '-' expr             # unaryMinus
-  | '(' expr ')'         # parens
-  | CONST                # constExpr
-  | VAR                  # varExpr
+  : expr '|' expr                # bor
+  | expr '^' expr                # bxor
+  | expr '&' expr                # band
+  | expr op=('=='|'!=') expr     # eqneq
+  | expr op=('<'|'>') expr       # ltgt
+  | expr op=('+'|'-') expr       # plusminus
+  | expr op=('*'|'/'|'%') expr   # multdivmod
+  | '!' expr                     # notExpr
+  | '-' expr                     # unaryMinus
+  | '(' expr ')'                 # parens
+  | CONST                        # constExpr
+  | VAR                          # varExpr
   ;
 
 // ----------------------

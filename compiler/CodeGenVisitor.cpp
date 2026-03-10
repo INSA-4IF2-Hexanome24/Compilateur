@@ -32,7 +32,8 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
     int frameSize = (int)symbolTable.size() * 4 + 4 * 20;
 
-    if (frameSize % 16 != 0) {
+    if (frameSize % 16 != 0)
+    {
         frameSize = frameSize + (16 - frameSize % 16);
     }
 
@@ -47,11 +48,13 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     std::cout << "    pushq %rbp\n";
     std::cout << "    movq  %rsp, %rbp\n";
 
-    if (frameSize > 0) {
+    if (frameSize > 0)
+    {
         std::cout << "    subq  $" << frameSize << ", %rsp\n";
     }
 
-    for (auto s : ctx->stmt()) {
+    for (auto s : ctx->stmt())
+    {
         visit(s);
     }
 
@@ -66,8 +69,10 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
 antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 {
-    for (auto v : ctx->var_decl_list()->var_decl()) {
-        if (v->expr() != nullptr) {
+    for (auto v : ctx->var_decl_list()->var_decl())
+    {
+        if (v->expr() != nullptr)
+        {
             visit(v->expr());
 
             std::string name = v->VAR()->getText();

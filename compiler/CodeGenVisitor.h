@@ -7,7 +7,8 @@
 #include <map>
 #include <string>
 
-class CodeGenVisitor : public ifccBaseVisitor {
+class CodeGenVisitor : public ifccBaseVisitor
+{
 public:
     std::map<std::string, int> symbolTable;
     int numTemps;

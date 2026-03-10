@@ -8,10 +8,13 @@
 #include <set>
 #include <string>
 
-class SymbolTableVisitor : public ifccBaseVisitor {
+class SymbolTableVisitor : public ifccBaseVisitor
+{
 public:
     std::map<std::string, int> symbolTable;
     std::set<std::string> used;
+
+    int numMaxTemps = 0;
 
     int nextIndex = -4;
     bool success = true;
