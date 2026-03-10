@@ -5,6 +5,12 @@
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
+    for (int i = 0; i < 20; i++) {
+    std::string name = "_temp" + std::to_string(i);
+    symbolTable[name] = nextIndex;
+    nextIndex -= 4;
+    }
+
     for (auto stmt : ctx->stmt()) {
         visit(stmt);
     }
