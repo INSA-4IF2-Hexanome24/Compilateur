@@ -1,23 +1,28 @@
 #include "SymbolTableVisitor.h"
 
+#include <iostream>
+#include <string>
+
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
-    // Visit all children (stmts + return)
-    visitChildren(ctx);
+    for (auto stmt : ctx->stmt()) {
+        visit(stmt);
+    }
 
-    // Check: every declared variable must be used at least once (read at least once)
-    for (auto &[name, idx] : symbolTable) {
-        (void)idx;
+    visit(ctx->return_stmt());
+
+    for (auto &it : symbolTable) {
+        std::string name = it.first;
+
         if (used.find(name) == used.end()) {
             std::cerr << "warning: variable '" << name
                       << "' declared but never used\n";
         }
     }
 
-    // Debug: print the full symbol table
     std::cerr << "=== Symbol Table ===\n";
-    for (auto &[name, idx] : symbolTable) {
-        std::cerr << "  " << name << "  ->  [rbp" << idx << "]\n";
+    for (auto &it : symbolTable) {
+        std::cerr << "  " << it.first << " -> [rbp" << it.second << "]\n";
     }
     std::cerr << "====================\n";
 
@@ -26,24 +31,21 @@ antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
 
 antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 {
-    // Parcours de toutes les variables déclarées
-    auto varListCtx = ctx->var_decl_list();
-    for (auto varDeclCtx : varListCtx->var_decl()) {
-        std::string name = varDeclCtx->VAR()->getText();
+    for (auto varDecl : ctx->var_decl_list()->var_decl()) {
+        std::string name = varDecl->VAR()->getText();
 
         if (symbolTable.count(name)) {
             std::cerr << "error: variable '" << name
                       << "' declared more than once\n";
             success = false;
-            continue;  // passe à la prochaine variable
+            continue;
         }
 
         symbolTable[name] = nextIndex;
-        nextIndex -= 4; // chaque int occupe 4 bytes
+        nextIndex -= 4;
 
-        // Si initialisation présente, visite l'expression
-        if (varDeclCtx->expr() != nullptr) {
-            visit(varDeclCtx->expr());
+        if (varDecl->expr() != nullptr) {
+            visit(varDecl->expr());
         }
     }
 
@@ -62,7 +64,6 @@ antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(
         return 0;
     }
 
-    // Visit the right-hand side expression (may contain VAR reads)
     visit(ctx->expr());
     return 0;
 }
@@ -74,21 +75,128 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitPrimary(
-    ifccParser::PrimaryContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitMult(ifccParser::MultContext *ctx)
 {
-    if (ctx->VAR() != nullptr) {
-        std::string name = ctx->VAR()->getText();
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
 
-        if (!symbolTable.count(name)) {
-            std::cerr << "error: variable '" << name
-                      << "' used before declaration\n";
-            success = false;
-            return 0;
-        }
+antlrcpp::Any SymbolTableVisitor::visitDiv(ifccParser::DivContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
 
-        used.insert(name);
+antlrcpp::Any SymbolTableVisitor::visitMod(ifccParser::ModContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitPlus(ifccParser::PlusContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitMinus(ifccParser::MinusContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitLt(ifccParser::LtContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitGt(ifccParser::GtContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitEq(ifccParser::EqContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitNeq(ifccParser::NeqContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitBand(ifccParser::BandContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitBxor(ifccParser::BxorContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitBor(ifccParser::BorContext *ctx)
+{
+    visit(ctx->expr(0));
+    visit(ctx->expr(1));
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitNotExpr(
+    ifccParser::NotExprContext *ctx)
+{
+    visit(ctx->expr());
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitUnaryMinus(
+    ifccParser::UnaryMinusContext *ctx)
+{
+    visit(ctx->expr());
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitParens(ifccParser::ParensContext *ctx)
+{
+    visit(ctx->expr());
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitConstExpr(
+    ifccParser::ConstExprContext *ctx)
+{
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitVarExpr(
+    ifccParser::VarExprContext *ctx)
+{
+    std::string name = ctx->VAR()->getText();
+
+    if (!symbolTable.count(name)) {
+        std::cerr << "error: variable '" << name
+                  << "' used before declaration\n";
+        success = false;
+        return 0;
     }
 
-    return visitChildren(ctx);
+    used.insert(name);
+    return 0;
 }
