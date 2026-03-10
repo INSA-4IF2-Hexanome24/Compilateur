@@ -10,6 +10,9 @@ class CodeGenVisitor : public ifccBaseVisitor {
 public:
     std::map<std::string, int> &symbolTable;
 
+    int numTemps =0;
+    int maxTempTop=0;
+
     explicit CodeGenVisitor(std::map<std::string, int> &st)
         : symbolTable(st)
     {
@@ -31,4 +34,8 @@ public:
     antlrcpp::Any visitMulExpr(ifccParser::MulExprContext *ctx) override;
     antlrcpp::Any visitUnaryExpr(ifccParser::UnaryExprContext *ctx) override;
     antlrcpp::Any visitPrimary(ifccParser::PrimaryContext *ctx) override;
+
+
+    void getTempVar(int i);
+    void setTempVar(int i);
 };

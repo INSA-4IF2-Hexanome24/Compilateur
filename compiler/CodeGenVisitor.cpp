@@ -2,19 +2,26 @@
 
 #include <iostream>
 
-static void pushRax()
+
+void CodeGenVisitor::setTempVar(int i)
 {
-    std::cout << "    pushq %rax\n";
+    std::string name = "_temp"+std::to_string(i);
+    int idx = symbolTable[name];
+    std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
 }
 
-static void popRcx()
+void CodeGenVisitor::getTempVar(int i)
 {
-    std::cout << "    popq  %rcx\n";
+    std::string name = "_temp"+std::to_string(i);
+    int idx = symbolTable[name];
+    std::cout << "    movl  " << idx << "(%rbp), %ecx\n";
 }
+
+
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
-    int frameSize = (int)symbolTable.size() * 4;
+    int frameSize = (int)symbolTable.size() * 4 + 4 * 20;
     if (frameSize % 16 != 0) {
         frameSize += 16 - (frameSize % 16);
     }
@@ -91,9 +98,10 @@ antlrcpp::Any CodeGenVisitor::visitOrExpr(ifccParser::OrExprContext *ctx)
     visit(operands[0]);
 
     for (size_t i = 1; i < operands.size(); i++) {
-        pushRax();
+        setTempVar(numTemps);
         visit(operands[i]);
-        popRcx();
+        getTempVar(numTemps);
+        numTemps++;
         std::cout << "    orl   %ecx, %eax\n";
     }
     return 0;
@@ -106,9 +114,10 @@ antlrcpp::Any CodeGenVisitor::visitXorExpr(ifccParser::XorExprContext *ctx)
     visit(operands[0]);
 
     for (size_t i = 1; i < operands.size(); i++) {
-        pushRax();
+        setTempVar(numTemps);
         visit(operands[i]);
-        popRcx();
+        getTempVar(numTemps);
+        numTemps++;
         std::cout << "    xorl  %ecx, %eax\n";
     }
     return 0;
@@ -121,9 +130,10 @@ antlrcpp::Any CodeGenVisitor::visitAndExpr(ifccParser::AndExprContext *ctx)
     visit(operands[0]);
 
     for (size_t i = 1; i < operands.size(); i++) {
-        pushRax();
+        setTempVar(numTemps);
         visit(operands[i]);
-        popRcx();
+        getTempVar(numTemps);
+        numTemps++;
         std::cout << "    andl  %ecx, %eax\n";
     }
     return 0;
@@ -138,9 +148,10 @@ antlrcpp::Any CodeGenVisitor::visitEqExpr(ifccParser::EqExprContext *ctx)
     for (size_t i = 1; i < operands.size(); i++) {
         std::string op = ctx->children[2 * i - 1]->getText();
 
-        pushRax();
+        setTempVar(numTemps);
         visit(operands[i]);
-        popRcx();
+        getTempVar(numTemps);
+        numTemps++;
 
         std::cout << "    cmpl  %eax, %ecx\n";
         if (op == "==") {
@@ -162,9 +173,10 @@ antlrcpp::Any CodeGenVisitor::visitRelExpr(ifccParser::RelExprContext *ctx)
     for (size_t i = 1; i < operands.size(); i++) {
         std::string op = ctx->children[2 * i - 1]->getText();
 
-        pushRax();
+        setTempVar(numTemps);
         visit(operands[i]);
-        popRcx();
+        getTempVar(numTemps);
+        numTemps++;
 
         std::cout << "    cmpl  %eax, %ecx\n";
         if (op == "<") {
@@ -186,9 +198,10 @@ antlrcpp::Any CodeGenVisitor::visitAddExpr(ifccParser::AddExprContext *ctx)
     for (size_t i = 1; i < operands.size(); i++) {
         std::string op = ctx->children[2 * i - 1]->getText();
 
-        pushRax();
+        setTempVar(numTemps);
         visit(operands[i]);
-        popRcx();
+        getTempVar(numTemps);
+        numTemps++;
 
         if (op == "+") {
             std::cout << "    addl  %ecx, %eax\n";
@@ -201,7 +214,7 @@ antlrcpp::Any CodeGenVisitor::visitAddExpr(ifccParser::AddExprContext *ctx)
     return 0;
 }
 
-// mulExpr: unaryExpr ( ('*' | '/' | '%') unaryExpr )*
+// mulExpr: unaryExpr ( ('*') unaryExpr )*
 antlrcpp::Any CodeGenVisitor::visitMulExpr(ifccParser::MulExprContext *ctx)
 {
     auto operands = ctx->unaryExpr();
@@ -211,9 +224,10 @@ antlrcpp::Any CodeGenVisitor::visitMulExpr(ifccParser::MulExprContext *ctx)
         std::string op = ctx->children[2 * i - 1]->getText();
 
         if (op == "*") {
-            pushRax();
-            visit(operands[i]);
-            popRcx();
+                setTempVar(numTemps);
+                visit(operands[i]);
+                getTempVar(numTemps);
+                numTemps++;
             std::cout << "    imull %ecx, %eax\n";
         } 
     }
