@@ -103,7 +103,7 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitMult(ifccParser::MultContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitMultdiv(ifccParser::MultdivContext *ctx)
 {
     int t = numTemps;
     numTemps++;
@@ -349,5 +349,33 @@ antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
     std::string name = ctx->VAR()->getText();
     int idx = symbolTable[name];
     std::cout << "    movl  " << idx << "(%rbp), %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
+{
+    int n = labelCount++;
+    std::string elseLabel = ".Lelse_" + std::to_string(n);
+    std::string endLabel  = ".Lend_"  + std::to_string(n);
+
+    visit(ctx->expr());
+    std::cout << "    cmpl  $0, %eax\n";
+    std::cout << "    je    " << elseLabel << "\n";
+
+    visit(ctx->block(0)); // then
+    std::cout << "    jmp   " << endLabel << "\n";
+
+    std::cout << elseLabel << ":\n";
+    if (ctx->block().size() > 1)
+        visit(ctx->block(1)); // else
+
+    std::cout << endLabel << ":\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx)
+{
+    for (auto s : ctx->stmt())
+        visit(s);
     return 0;
 }

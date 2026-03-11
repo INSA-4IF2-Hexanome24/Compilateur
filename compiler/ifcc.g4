@@ -15,6 +15,7 @@ prog
 stmt
   : decl_stmt
   | assign_stmt
+  | if_stmt
   ;
 
 decl_stmt
@@ -37,6 +38,16 @@ assign_stmt
 return_stmt
   : 'return' expr ';'
   ;
+
+if_stmt
+  : 'if' '(' expr ')' block
+    ('else' block)?
+  ;
+
+block
+  : '{' stmt* '}'
+  ;
+
 
 // ----------------------
 // Expressions

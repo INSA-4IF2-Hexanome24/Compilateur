@@ -3,6 +3,29 @@
 #include <iostream>
 #include <string>
 
+
+antlrcpp::Any SymbolTableVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
+{
+    visit(ctx->expr());
+
+    // visit then-block (always present, index 0)
+    visit(ctx->block(0));
+
+    // visit else-block if present
+    if (ctx->block().size() > 1)
+        visit(ctx->block(1));
+
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx)
+{
+    for (auto s : ctx->stmt())
+        visit(s);
+    return 0;
+}
+
+
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
     for (int i = 0; i < 20; i++) {
@@ -81,7 +104,7 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitMult(ifccParser::MultContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitMultdiv(ifccParser::MultdivContext *ctx)
 {
     visit(ctx->expr(0));
     visit(ctx->expr(1));
