@@ -16,6 +16,15 @@ stmt
   : decl_stmt
   | assign_stmt
   | if_stmt
+  | expr_stmt
+  ;
+
+expr_stmt
+  : expr ';'
+  ;
+
+arg_list
+  : expr (',' expr)*
   ;
 
 decl_stmt
@@ -71,6 +80,7 @@ expr
   | '(' expr ')'                       # parens
   | CONST                              # constExpr
   | VAR                                # varExpr
+  | VAR '(' arg_list? ')'              # funcCall
   ;
 
 // ----------------------

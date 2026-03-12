@@ -21,6 +21,8 @@ public:
     void getTempVar(int i);
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
+    virtual antlrcpp::Any visitExpr_stmt(
+        ifccParser::Expr_stmtContext *ctx) override;
     virtual antlrcpp::Any visitDecl_stmt(
         ifccParser::Decl_stmtContext *ctx) override;
     virtual antlrcpp::Any visitAssign_stmt(
@@ -44,6 +46,8 @@ public:
         ifccParser::ConstExprContext *ctx) override;
     virtual antlrcpp::Any visitVarExpr(
         ifccParser::VarExprContext *ctx) override;
+    virtual antlrcpp::Any visitFuncCall(
+        ifccParser::FuncCallContext *ctx) override;
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
 };

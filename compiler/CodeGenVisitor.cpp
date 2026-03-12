@@ -68,6 +68,12 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitExpr_stmt(ifccParser::Expr_stmtContext *ctx)
+{
+    visit(ctx->expr());
+    return 0;
+}
+
 antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 {
     for (auto v : ctx->var_decl_list()->var_decl())
@@ -307,6 +313,45 @@ antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
     std::string name = ctx->VAR()->getText();
     int idx = symbolTable[name];
     std::cout << "    movl  " << idx << "(%rbp), %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
+{
+    static const char *argRegs[] = {
+        "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
+    };
+
+    int argCount = 0;
+    if (ctx->arg_list() != nullptr)
+    {
+        argCount = static_cast<int>(ctx->arg_list()->expr().size());
+    }
+
+    int tempBase = numTemps;
+    numTemps += argCount;
+
+    if (ctx->arg_list() != nullptr)
+    {
+        int i = 0;
+        for (auto e : ctx->arg_list()->expr())
+        {
+            visit(e);
+            setTempVar(tempBase + i);
+            i++;
+        }
+
+        for (int j = 0; j < argCount; j++)
+        {
+            std::string tempName = "_temp" + std::to_string(tempBase + j);
+            int idx = symbolTable[tempName];
+            std::cout << "    movl  " << idx << "(%rbp), " << argRegs[j] << "\n";
+        }
+    }
+
+    std::cout << "    call  " << ctx->VAR()->getText() << "\n";
+
+    numTemps = tempBase;
     return 0;
 }
 

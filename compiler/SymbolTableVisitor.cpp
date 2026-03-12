@@ -17,6 +17,36 @@ antlrcpp::Any SymbolTableVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitExpr_stmt(ifccParser::Expr_stmtContext *ctx)
+{
+    visit(ctx->expr());
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
+{
+    int argCount = 0;
+    if (ctx->arg_list() != nullptr) {
+        argCount = static_cast<int>(ctx->arg_list()->expr().size());
+    }
+
+    if (argCount > 6) {
+        std::cerr << "error: functions with more than 6 arguments are not supported yet\n";
+        success = false;
+        return 0;
+    }
+
+    numMaxTemps += argCount;
+
+    if (ctx->arg_list() != nullptr) {
+        for (auto e : ctx->arg_list()->expr()) {
+            visit(e);
+        }
+    }
+
+    return 0;
+}
+
 antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx)
 {
     for (auto s : ctx->stmt())
@@ -43,6 +73,11 @@ antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
     for (auto &it : symbolTable)
     {
         std::string name = it.first;
+
+        if (name.rfind("_temp", 0) == 0)
+        {
+            continue;
+        }
 
         if (used.find(name) == used.end())
         {
