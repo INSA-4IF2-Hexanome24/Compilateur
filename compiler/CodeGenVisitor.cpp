@@ -319,3 +319,23 @@ antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx)
         visit(s);
     return 0;
 }
+
+antlrcpp::Any CodeGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
+{
+    int n = labelCount++;
+    std::string startLabel = ".Lwhile_" + std::to_string(n);
+    std::string endLabel   = ".Lend_"   + std::to_string(n);
+
+    std::cout << startLabel << ":\n";
+
+    visit(ctx->expr());
+    std::cout << "    cmpl  $0, %eax\n";
+    std::cout << "    je    " << endLabel << "\n";
+
+    visit(ctx->block());
+
+    std::cout << "    jmp   " << startLabel << "\n";
+    std::cout << endLabel << ":\n";
+
+    return 0;
+}

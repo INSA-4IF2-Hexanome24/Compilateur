@@ -4,6 +4,17 @@
 #include <string>
 
 
+
+antlrcpp::Any SymbolTableVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
+{
+    visit(ctx->expr());
+
+    // visit loop body (always present, index 0)
+    visit(ctx->block());
+
+    return 0;
+}
+
 antlrcpp::Any SymbolTableVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
     visit(ctx->expr());
