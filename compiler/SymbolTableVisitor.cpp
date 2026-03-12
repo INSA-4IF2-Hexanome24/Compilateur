@@ -71,7 +71,7 @@ antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
         visit(stmt);
     }
 
-    visit(ctx->return_stmt());
+    //visit(ctx->return_stmt());
 
     for (int i = 0; i<numMaxTemps;i++)
     {
