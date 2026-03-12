@@ -16,6 +16,7 @@ stmt
   : decl_stmt
   | assign_stmt
   | if_stmt
+  | block
   ;
 
 decl_stmt

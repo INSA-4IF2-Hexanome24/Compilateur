@@ -163,7 +163,6 @@ antlrcpp::Any CodeGenVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 }
 
 antlrcpp::Any CodeGenVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
-antlrcpp::Any CodeGenVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 {
     int t = numTemps;
     numTemps++;
@@ -193,7 +192,6 @@ antlrcpp::Any CodeGenVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 antlrcpp::Any CodeGenVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 {
     int t = numTemps;
