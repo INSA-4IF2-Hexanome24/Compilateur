@@ -13,6 +13,7 @@ public:
     std::map<std::string, int> symbolTable;
     std::set<std::string> used;
 
+    int numMaxTemps = 0;
     int nextIndex = -4;
     bool success = true;
 
@@ -24,25 +25,13 @@ public:
     virtual antlrcpp::Any visitReturn_stmt(
         ifccParser::Return_stmtContext *ctx) override;
 
-    virtual antlrcpp::Any visitMultdiv(ifccParser::MultdivContext *ctx) override;
-    virtual antlrcpp::Any visitDiv(ifccParser::DivContext *ctx) override;
-    virtual antlrcpp::Any visitMod(ifccParser::ModContext *ctx) override;
-    virtual antlrcpp::Any visitPlus(ifccParser::PlusContext *ctx) override;
-    virtual antlrcpp::Any visitMinus(ifccParser::MinusContext *ctx) override;
-    virtual antlrcpp::Any visitLt(ifccParser::LtContext *ctx) override;
-    virtual antlrcpp::Any visitGt(ifccParser::GtContext *ctx) override;
-    virtual antlrcpp::Any visitEq(ifccParser::EqContext *ctx) override;
-    virtual antlrcpp::Any visitNeq(ifccParser::NeqContext *ctx) override;
+    virtual antlrcpp::Any visitMultdivmod(ifccParser::MultdivmodContext *ctx) override;
+    virtual antlrcpp::Any visitPlusminus(ifccParser::PlusminusContext *ctx) override;
+    virtual antlrcpp::Any visitLtgt(ifccParser::LtgtContext *ctx) override;
+    virtual antlrcpp::Any visitEqneq(ifccParser::EqneqContext *ctx) override;
     virtual antlrcpp::Any visitBand(ifccParser::BandContext *ctx) override;
     virtual antlrcpp::Any visitBxor(ifccParser::BxorContext *ctx) override;
     virtual antlrcpp::Any visitBor(ifccParser::BorContext *ctx) override;
-    virtual antlrcpp::Any visitNotExpr(
-        ifccParser::NotExprContext *ctx) override;
-    virtual antlrcpp::Any visitUnaryMinus(
-        ifccParser::UnaryMinusContext *ctx) override;
-    virtual antlrcpp::Any visitParens(ifccParser::ParensContext *ctx) override;
-    virtual antlrcpp::Any visitConstExpr(
-        ifccParser::ConstExprContext *ctx) override;
     virtual antlrcpp::Any visitVarExpr(
         ifccParser::VarExprContext *ctx) override;
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;

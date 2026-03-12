@@ -59,15 +59,15 @@ block
 //exemple meme niveau OP=('*'|'%')
 
 expr
-  : expr '|' expr                      # bor
-  | expr '^' expr                      # bxor
-  | expr '&' expr                      # band
-  | expr  OP=('=='|'!=') expr          # eqneq
-  | expr  OP=('<'|'>') expr            # ltgt
-  | expr  OP=('+'|'-') expr            # plusminus
-  | expr  OP=('*'|'/'|'%') expr        # multdivmod
+  : '-' expr                           # unaryMinus
   | '!' expr                           # notExpr
-  | '-' expr                           # unaryMinus
+  | expr  OP=('*'|'/'|'%') expr        # Multdivmod
+  | expr  OP=('+'|'-') expr            # Plusminus
+  | expr  OP=('<'|'>') expr            # Ltgt 
+  | expr  OP=('=='|'!=') expr          # Eqneq
+  | expr '&' expr                      # band
+  | expr '^' expr                      # bxor
+  | expr '|' expr                      # bor 
   | '(' expr ')'                       # parens
   | CONST                              # constExpr
   | VAR                                # varExpr
