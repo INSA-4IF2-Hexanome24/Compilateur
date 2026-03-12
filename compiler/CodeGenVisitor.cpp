@@ -103,7 +103,7 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitMultdiv(ifccParser::MultdivContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 {
     int t = numTemps;
     numTemps++;
@@ -115,11 +115,22 @@ antlrcpp::Any CodeGenVisitor::visitMultdiv(ifccParser::MultdivContext *ctx)
     std::cout << "    movl  %eax, %ecx\n";
     getTempVar(t);
 
-    std::cout << "    imull %ecx, %eax\n";
+    std::string op = ctx->OP->getText();
+    if (op == "*") {
+        std::cout << "    imull %ecx, %eax\n";
+    } else if (op == "/") {
+        std::cout << "    cltd\n";
+        std::cout << "    idivl %ecx\n";
+    } else { // %
+        std::cout << "    cltd\n";
+        std::cout << "    idivl %ecx\n";
+        std::cout << "    movl  %edx, %eax\n";
+    }
+
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitDiv(ifccParser::DivContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 {
     int t = numTemps;
     numTemps++;
@@ -131,64 +142,17 @@ antlrcpp::Any CodeGenVisitor::visitDiv(ifccParser::DivContext *ctx)
     std::cout << "    movl  %eax, %ecx\n";
     getTempVar(t);
 
-    std::cout << "    cltd\n";
-    std::cout << "    idivl %ecx\n";
+    std::string op = ctx->OP->getText();
+    if (op == "+") {
+        std::cout << "    addl  %ecx, %eax\n";
+    } else { // -
+        std::cout << "    subl  %ecx, %eax\n";
+    }
 
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitMod(ifccParser::ModContext *ctx)
-{
-    int t = numTemps;
-    numTemps++;
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
-
-    std::cout << "    cltd\n";
-    std::cout << "    idivl %ecx\n";
-    std::cout << "    movl  %edx, %eax\n";
-
-    return 0;
-}
-
-antlrcpp::Any CodeGenVisitor::visitPlus(ifccParser::PlusContext *ctx)
-{
-    int t = numTemps;
-    numTemps++;
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
-
-    std::cout << "    addl  %ecx, %eax\n";
-    return 0;
-}
-
-antlrcpp::Any CodeGenVisitor::visitMinus(ifccParser::MinusContext *ctx)
-{
-    int t = numTemps;
-    numTemps++;
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
-
-    std::cout << "    subl  %ecx, %eax\n";
-    return 0;
-}
-
-antlrcpp::Any CodeGenVisitor::visitLt(ifccParser::LtContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 {
     int t = numTemps;
     numTemps++;
@@ -201,13 +165,20 @@ antlrcpp::Any CodeGenVisitor::visitLt(ifccParser::LtContext *ctx)
     getTempVar(t);
 
     std::cout << "    cmpl  %ecx, %eax\n";
-    std::cout << "    setl  %al\n";
+
+    std::string op = ctx->OP->getText();
+    if (op == "<") {
+        std::cout << "    setl  %al\n";
+    } else { // >
+        std::cout << "    setg  %al\n";
+    }
+
     std::cout << "    movzbl %al, %eax\n";
 
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitGt(ifccParser::GtContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 {
     int t = numTemps;
     numTemps++;
@@ -220,45 +191,14 @@ antlrcpp::Any CodeGenVisitor::visitGt(ifccParser::GtContext *ctx)
     getTempVar(t);
 
     std::cout << "    cmpl  %ecx, %eax\n";
-    std::cout << "    setg  %al\n";
-    std::cout << "    movzbl %al, %eax\n";
 
-    return 0;
-}
+    std::string op = ctx->OP->getText();
+    if (op == "==") {
+        std::cout << "    sete  %al\n";
+    } else { // !=
+        std::cout << "    setne %al\n";
+    }
 
-antlrcpp::Any CodeGenVisitor::visitEq(ifccParser::EqContext *ctx)
-{
-    int t = numTemps;
-    numTemps++;
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
-
-    std::cout << "    cmpl  %ecx, %eax\n";
-    std::cout << "    sete  %al\n";
-    std::cout << "    movzbl %al, %eax\n";
-
-    return 0;
-}
-
-antlrcpp::Any CodeGenVisitor::visitNeq(ifccParser::NeqContext *ctx)
-{
-    int t = numTemps;
-    numTemps++;
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
-
-    std::cout << "    cmpl  %ecx, %eax\n";
-    std::cout << "    setne %al\n";
     std::cout << "    movzbl %al, %eax\n";
 
     return 0;

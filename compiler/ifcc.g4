@@ -64,8 +64,8 @@ expr
   | expr '&' expr                      # band
   | expr  OP=('=='|'!=') expr          # eqneq
   | expr  OP=('<'|'>') expr            # ltgt
-  | expr  OP=('+'|'-') expr            # plusminus
   | expr  OP=('*'|'/'|'%') expr        # multdivmod
+  | expr  OP=('+'|'-') expr            # plusminus
   | '!' expr                           # notExpr
   | '-' expr                           # unaryMinus
   | '(' expr ')'                       # parens

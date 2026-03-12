@@ -27,15 +27,10 @@ public:
     virtual antlrcpp::Any visitReturn_stmt(
         ifccParser::Return_stmtContext *ctx) override;
 
-    virtual antlrcpp::Any visitMultdiv(ifccParser::MultdivContext *ctx) override;
-    virtual antlrcpp::Any visitDiv(ifccParser::DivContext *ctx) override;
-    virtual antlrcpp::Any visitMod(ifccParser::ModContext *ctx) override;
-    virtual antlrcpp::Any visitPlus(ifccParser::PlusContext *ctx) override;
-    virtual antlrcpp::Any visitMinus(ifccParser::MinusContext *ctx) override;
-    virtual antlrcpp::Any visitLt(ifccParser::LtContext *ctx) override;
-    virtual antlrcpp::Any visitGt(ifccParser::GtContext *ctx) override;
-    virtual antlrcpp::Any visitEq(ifccParser::EqContext *ctx) override;
-    virtual antlrcpp::Any visitNeq(ifccParser::NeqContext *ctx) override;
+    virtual antlrcpp::Any visitMultdivmod(ifccParser::MultdivmodContext *ctx) override;
+    virtual antlrcpp::Any visitPlusminus(ifccParser::PlusminusContext *ctx) override;
+    virtual antlrcpp::Any visitLtgt(ifccParser::LtgtContext *ctx) override;
+    virtual antlrcpp::Any visitEqneq(ifccParser::EqneqContext *ctx) override;
     virtual antlrcpp::Any visitBand(ifccParser::BandContext *ctx) override;
     virtual antlrcpp::Any visitBxor(ifccParser::BxorContext *ctx) override;
     virtual antlrcpp::Any visitBor(ifccParser::BorContext *ctx) override;

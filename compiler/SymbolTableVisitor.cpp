@@ -104,63 +104,28 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitMultdiv(ifccParser::MultdivContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 {
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitDiv(ifccParser::DivContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 {
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitMod(ifccParser::ModContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 {
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitPlus(ifccParser::PlusContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitMinus(ifccParser::MinusContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitLt(ifccParser::LtContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitGt(ifccParser::GtContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitEq(ifccParser::EqContext *ctx)
-{
-    visit(ctx->expr(0));
-    visit(ctx->expr(1));
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitNeq(ifccParser::NeqContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 {
     visit(ctx->expr(0));
     visit(ctx->expr(1));
