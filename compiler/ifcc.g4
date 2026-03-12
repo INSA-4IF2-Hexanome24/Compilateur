@@ -5,7 +5,7 @@ axiom
   ;
 
 prog
-  : 'int' 'main' '(' ')' '{' stmt* return_stmt '}'
+  : 'int' 'main' '(' ')' '{' stmt* '}'
   ;
 
 // ----------------------
@@ -19,6 +19,7 @@ stmt
   | expr_stmt
   | block
   | while_stmt
+  | return_stmt
   ;
 
 expr_stmt

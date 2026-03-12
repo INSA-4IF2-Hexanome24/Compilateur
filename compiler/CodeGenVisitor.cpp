@@ -59,8 +59,7 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
         visit(s);
     }
 
-    visit(ctx->return_stmt());
-
+    std::cout << "    fin:\n";
     std::cout << "    movq  %rbp, %rsp\n";
     std::cout << "    popq  %rbp\n";
     std::cout << "    ret\n";
@@ -107,6 +106,7 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(
     ifccParser::Return_stmtContext *ctx)
 {
     visit(ctx->expr());
+    std::cout << "    jmp fin\n";
     return 0;
 }
 
