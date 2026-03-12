@@ -45,6 +45,10 @@ def dumpfile(name,quiet=False):
     if not quiet:
         print(data,end='')
     return data
+
+def run_program(executable, logfile):
+    stdin_redirect = " < input.in" if os.path.isfile("input.in") else ""
+    return run_command(f"{executable}{stdin_redirect}", logfile)
     
 ######################################################################################
 ## ARGPARSE step: make sense of our command-line arguments
@@ -240,6 +244,9 @@ for inputfilename in inputfilenames:
         
     os.mkdir(pld_base_dir+'/ifcc-test-output/'+subdirname)
     shutil.copyfile(inputfilename,pld_base_dir+'/ifcc-test-output/'+subdirname+'/input.c')
+    inputdata = inputfilename[:-2] + '.in'
+    if os.path.isfile(inputdata):
+        shutil.copyfile(inputdata, pld_base_dir+'/ifcc-test-output/'+subdirname+'/input.in')
     jobs.append(subdirname)
 
 ## eliminate duplicate paths from the 'jobs' list
@@ -276,7 +283,7 @@ for jobname in jobs:
         # test-case is a valid program. we should run it
         gccstatus=run_command("gcc -o exe-gcc asm-gcc.s", "gcc-link.txt")
     if gccstatus == 0: # then both compile and link stage went well
-        exegccstatus=run_command("./exe-gcc", "gcc-execute.txt")
+        exegccstatus=run_program("./exe-gcc", "gcc-execute.txt")
         if args.verbose >=2:
             dumpfile("gcc-execute.txt")
             
@@ -314,7 +321,7 @@ for jobname in jobs:
     ## both compilers  did produce an  executable, so now we  run both
     ## these executables and compare the results.
         
-    run_command("./exe-ifcc", "ifcc-execute.txt")
+    run_program("./exe-ifcc", "ifcc-execute.txt")
     if open("gcc-execute.txt").read() != open("ifcc-execute.txt").read() :
         print("TEST FAIL (different results at execution)")
         all_ok=False
