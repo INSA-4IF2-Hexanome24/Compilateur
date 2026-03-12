@@ -57,7 +57,7 @@ int main(int argn, const char **argv)
     }
 
     // --- Pass 2 : code generation (reuses the symbol table) ---
-    CodeGenVisitor cgv(stv.symbolTable);
+    CodeGenVisitor cgv(stv.symbolTable, stv.numMaxTemps);
     cgv.visit(tree);
 
     return 0;

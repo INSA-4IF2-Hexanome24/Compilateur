@@ -8,10 +8,11 @@ CodeGenVisitor::CodeGenVisitor()
     numTemps = 0;
 }
 
-CodeGenVisitor::CodeGenVisitor(const std::map<std::string, int> &table)
+CodeGenVisitor::CodeGenVisitor(const std::map<std::string, int> &table,int numMaxTemps)
 {
     symbolTable = table;
     numTemps = 0;
+    this->numMaxTemps = numMaxTemps;
 }
 
 void CodeGenVisitor::setTempVar(int i)
@@ -30,7 +31,7 @@ void CodeGenVisitor::getTempVar(int i)
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
-    int frameSize = (int)symbolTable.size() * 4 + 4 * 20;
+    int frameSize = (int)(symbolTable.size()+numMaxTemps) * 4;
 
     if (frameSize % 16 != 0)
     {

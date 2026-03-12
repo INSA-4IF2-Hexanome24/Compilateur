@@ -12,9 +12,10 @@ public:
     std::map<std::string, int> symbolTable;
     int numTemps;
     int labelCount = 0;
+    int numMaxTemps;
 
     CodeGenVisitor();
-    CodeGenVisitor(const std::map<std::string, int> &table);
+    CodeGenVisitor(const std::map<std::string, int> &table, int numMaxTemps);
 
     void setTempVar(int i);
     void getTempVar(int i);

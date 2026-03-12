@@ -104,12 +104,6 @@ antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(
-    ifccParser::Return_stmtContext *ctx)
-{
-    visit(ctx->expr());
-    return 0;
-}
 
 antlrcpp::Any SymbolTableVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 {

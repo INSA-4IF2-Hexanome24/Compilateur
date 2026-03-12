@@ -22,8 +22,6 @@ public:
         ifccParser::Decl_stmtContext *ctx) override;
     virtual antlrcpp::Any visitAssign_stmt(
         ifccParser::Assign_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitReturn_stmt(
-        ifccParser::Return_stmtContext *ctx) override;
 
     virtual antlrcpp::Any visitMultdivmod(ifccParser::MultdivmodContext *ctx) override;
     virtual antlrcpp::Any visitPlusminus(ifccParser::PlusminusContext *ctx) override;
