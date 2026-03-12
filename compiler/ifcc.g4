@@ -18,6 +18,7 @@ stmt
   | if_stmt
   | block
   | while_stmt
+  | for_stmt
   ;
 
 decl_stmt
@@ -53,6 +54,11 @@ block
 while_stmt
   : 'while' '(' expr ')' block
   ;
+
+for_stmt
+  : 'for' '(' ( decl_stmt | assign_stmt | ';' ) expr ';' VAR '=' expr ')' block
+  ;
+
 
 
 // ----------------------

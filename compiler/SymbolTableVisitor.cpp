@@ -3,7 +3,29 @@
 #include <iostream>
 #include <string>
 
+antlrcpp::Any SymbolTableVisitor::visitFor_stmt(ifccParser::For_stmtContext *ctx)
+{
+    // visit init (decl or assign)
+    if (ctx->decl_stmt())
+        visit(ctx->decl_stmt());
+    else if (ctx->assign_stmt())
+        visit(ctx->assign_stmt());
 
+    visit(ctx->expr(0)); // condition
+
+    // check increment variable exists
+    std::string name = ctx->VAR()->getText();
+    if (!symbolTable.count(name)) {
+        std::cerr << "error: variable '" << name << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    used.insert(name);
+    visit(ctx->expr(1)); // increment expression
+
+    visit(ctx->block());
+    return 0;
+}
 
 antlrcpp::Any SymbolTableVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {

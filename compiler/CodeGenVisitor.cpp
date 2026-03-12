@@ -357,3 +357,37 @@ antlrcpp::Any CodeGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx
 
     return 0;
 }
+
+antlrcpp::Any CodeGenVisitor::visitFor_stmt(ifccParser::For_stmtContext *ctx)
+{
+    int n = labelCount++;
+    std::string startLabel = ".Lfor_" + std::to_string(n);
+    std::string endLabel   = ".Lend_" + std::to_string(n);
+
+    // init
+    if (ctx->decl_stmt())
+        visit(ctx->decl_stmt());
+    else if (ctx->assign_stmt())
+        visit(ctx->assign_stmt());
+
+    std::cout << startLabel << ":\n";
+
+    // condition
+    visit(ctx->expr(0));
+    std::cout << "    cmpl  $0, %eax\n";
+    std::cout << "    je    " << endLabel << "\n";
+
+    // body
+    visit(ctx->block());
+
+    // increment: VAR = expr(1)
+    visit(ctx->expr(1));
+    std::string name = ctx->VAR()->getText();
+    int idx = symbolTable[name];
+    std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
+
+    std::cout << "    jmp   " << startLabel << "\n";
+    std::cout << endLabel << ":\n";
+
+    return 0;
+}
