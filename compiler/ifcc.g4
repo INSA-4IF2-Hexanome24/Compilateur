@@ -17,6 +17,8 @@ stmt
   | assign_stmt
   | if_stmt
   | expr_stmt
+  | block
+  | while_stmt
   ;
 
 expr_stmt
@@ -55,6 +57,10 @@ if_stmt
 
 block
   : '{' stmt* '}'
+  ;
+
+while_stmt
+  : 'while' '(' expr ')' block
   ;
 
 
