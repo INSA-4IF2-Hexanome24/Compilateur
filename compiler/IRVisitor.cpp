@@ -266,6 +266,7 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
     BasicBlock *thenBB  = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
     cfg->add_bb(thenBB);
+    cfg->add_bb(afterBB);
 
     cfg->current_bb->test_var_name = cond;
 
@@ -273,7 +274,6 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
     {
         BasicBlock *elseBB = new BasicBlock(cfg, cfg->new_BB_name());
         cfg->add_bb(elseBB);
-        cfg->add_bb(afterBB);
 
         cfg->current_bb->exit_true  = thenBB;
         cfg->current_bb->exit_false = elseBB;
@@ -282,19 +282,16 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
         cfg->current_bb = thenBB;
         visit(ctx->block(0));
         BasicBlock* lastThenBB = cfg->current_bb; // capture après visite
-        if (lastThenBB->exit_true == nullptr && lastThenBB->exit_false == nullptr)
             lastThenBB->exit_true = afterBB;
 
         // else
         cfg->current_bb = elseBB;
         visit(ctx->block(1));
         BasicBlock* lastElseBB = cfg->current_bb; // capture après visite
-        if (lastElseBB->exit_true == nullptr && lastElseBB->exit_false == nullptr)
             lastElseBB->exit_true = afterBB;
     }
     else
     {
-        cfg->add_bb(afterBB);
         cfg->current_bb->exit_true  = thenBB;
         cfg->current_bb->exit_false = afterBB;
 
@@ -302,7 +299,6 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
         cfg->current_bb = thenBB;
         visit(ctx->block(0));
         BasicBlock* lastThenBB = cfg->current_bb; // capture après visite
-        if (lastThenBB->exit_true == nullptr && lastThenBB->exit_false == nullptr)
             lastThenBB->exit_true = afterBB;
     }
 

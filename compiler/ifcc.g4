@@ -13,19 +13,25 @@ prog
 // ----------------------
 
 stmt
-  : 'int' var_decl_list ';'                   # decl_stmt
-  | VAR '=' expr ';'                          # assign_stmt
-  | 'if' '(' expr ')' block ('else' block)?   # if_stmt
-  | expr ';'                                  # expr_stmt
-  | block                                     # block
-  | 'while' '(' expr ')' block                # while_stmt
-  | 'return' expr ';'                         # return_stmt
+  : decl_stmt
+  | assign_stmt
+  | if_stmt
+  | expr_stmt
+  | block
+  | while_stmt
+  | return_stmt
   ;
 
-
+expr_stmt
+  : expr ';'
+  ;
 
 arg_list
   : expr (',' expr)*
+  ;
+
+decl_stmt
+  : 'int' var_decl_list ';'
   ;
 
 var_decl_list
@@ -37,10 +43,26 @@ var_decl
   | VAR '=' expr
   ;
 
+assign_stmt
+  : VAR '=' expr ';'
+  ;
+
+return_stmt
+  : 'return' expr ';'
+  ;
+
+if_stmt
+  : 'if' '(' expr ')' block
+    ('else' block)?
+  ;
+
 block
   : '{' stmt* '}'
   ;
 
+while_stmt
+  : 'while' '(' expr ')' block
+  ;
 
 
 // ----------------------
