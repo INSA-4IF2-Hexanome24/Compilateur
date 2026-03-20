@@ -1,3 +1,3 @@
-ANTLRJAR=/usr/share/java/antlr4.jar
-ANTLRINC=/usr/include/antlr4-runtime/
-ANTLRLIB=/usr/lib/x86_64-linux-gnu/libantlr4-runtime.a
+ANTLRJAR=/home/$(USER)/antlr4-install/antlr-4.13.2-complete.jar
+ANTLRINC=/home/$(USER)/antlr4-install/include/antlr4-runtime/
+ANTLRLIB=/home/$(USER)/antlr4-install/lib/libantlr4-runtime.a

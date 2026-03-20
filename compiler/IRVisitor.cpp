@@ -8,6 +8,8 @@
 using std::string;
 using std::vector;
 
+using namespace std;
+
 IRVisitor::IRVisitor()
 {
     numMaxTemps = 0;
@@ -69,7 +71,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
     {
         if (v->expr() != nullptr)
         {
-            string rhs = visit(v->expr()).as<string>();
+            string rhs = any_cast<string>(visit(v->expr()));
             string lhs = v->VAR()->getText();
             cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
         }
@@ -79,7 +81,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
-    string rhs = visit(ctx->expr()).as<string>();
+    string rhs = any_cast<string>(visit(ctx->expr()));
     string lhs = ctx->VAR()->getText();
     cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
     return 0;
@@ -87,7 +89,7 @@ antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    string retVal = visit(ctx->expr()).as<string>();
+    string retVal = any_cast<string>(visit(ctx->expr()));
     cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
     cfg->current_bb->exit_true = returnBB;
 
@@ -99,8 +101,8 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 {
-    string lhs = visit(ctx->expr(0)).as<string>();
-    string rhs = visit(ctx->expr(1)).as<string>();
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
     string op = ctx->OP->getText();
 
@@ -121,8 +123,8 @@ antlrcpp::Any IRVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 
 antlrcpp::Any IRVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 {
-    string lhs = visit(ctx->expr(0)).as<string>();
-    string rhs = visit(ctx->expr(1)).as<string>();
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
     string op = ctx->OP->getText();
 
@@ -139,8 +141,8 @@ antlrcpp::Any IRVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 
 antlrcpp::Any IRVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 {
-    string lhs = visit(ctx->expr(0)).as<string>();
-    string rhs = visit(ctx->expr(1)).as<string>();
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
     string op = ctx->OP->getText();
 
@@ -157,8 +159,8 @@ antlrcpp::Any IRVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 {
-    string lhs = visit(ctx->expr(0)).as<string>();
-    string rhs = visit(ctx->expr(1)).as<string>();
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
     string op = ctx->OP->getText();
 
@@ -175,8 +177,8 @@ antlrcpp::Any IRVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBand(ifccParser::BandContext *ctx)
 {
-    string lhs = visit(ctx->expr(0)).as<string>();
-    string rhs = visit(ctx->expr(1)).as<string>();
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
     cfg->current_bb->add_IRInstr(IRInstr::band, TYPE_INT, {lhs, rhs, dst});
     return dst;
@@ -184,8 +186,8 @@ antlrcpp::Any IRVisitor::visitBand(ifccParser::BandContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBxor(ifccParser::BxorContext *ctx)
 {
-    string lhs = visit(ctx->expr(0)).as<string>();
-    string rhs = visit(ctx->expr(1)).as<string>();
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
     cfg->current_bb->add_IRInstr(IRInstr::bxor, TYPE_INT, {lhs, rhs, dst});
     return dst;
@@ -193,8 +195,8 @@ antlrcpp::Any IRVisitor::visitBxor(ifccParser::BxorContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBor(ifccParser::BorContext *ctx)
 {
-    string lhs = visit(ctx->expr(0)).as<string>();
-    string rhs = visit(ctx->expr(1)).as<string>();
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
     cfg->current_bb->add_IRInstr(IRInstr::bor, TYPE_INT, {lhs, rhs, dst});
     return dst;
@@ -202,7 +204,7 @@ antlrcpp::Any IRVisitor::visitBor(ifccParser::BorContext *ctx)
 
 antlrcpp::Any IRVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 {
-    string val = visit(ctx->expr()).as<string>();
+    string val = any_cast<string>(visit(ctx->expr()));
     string zero = cfg->create_new_tempvar(TYPE_INT);
     string dst = cfg->create_new_tempvar(TYPE_INT);
     cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
@@ -212,7 +214,7 @@ antlrcpp::Any IRVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 
 antlrcpp::Any IRVisitor::visitUnaryMinus(ifccParser::UnaryMinusContext *ctx)
 {
-    string val = visit(ctx->expr()).as<string>();
+    string val = any_cast<string>(visit(ctx->expr()));
     string zero = cfg->create_new_tempvar(TYPE_INT);
     string dst = cfg->create_new_tempvar(TYPE_INT);
     cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
@@ -249,7 +251,7 @@ antlrcpp::Any IRVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
     {
         for (auto e : ctx->arg_list()->expr())
         {
-            params.push_back(visit(e).as<string>());
+            params.push_back(any_cast<string>(visit(e)));
         }
     }
 
@@ -259,7 +261,7 @@ antlrcpp::Any IRVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
 
 antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
-    string cond = visit(ctx->expr()).as<string>();
+    string cond = any_cast<string>(visit(ctx->expr()));
 
     BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
@@ -330,7 +332,7 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
     cfg->current_bb->exit_true = condBB;
 
     cfg->current_bb = condBB;
-    string cond = visit(ctx->expr()).as<string>();
+    string cond = any_cast<string>(visit(ctx->expr()));
     condBB->test_var_name = cond;
     condBB->exit_true = bodyBB;
     condBB->exit_false = afterBB;

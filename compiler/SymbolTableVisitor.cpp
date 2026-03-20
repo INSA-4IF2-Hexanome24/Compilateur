@@ -238,5 +238,5 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(
 
     std::string SymbolTableVisitor::resolveVar(std::string var) // renvoie le nom de la var qui est utilisé
     {
-        
+      
     }
