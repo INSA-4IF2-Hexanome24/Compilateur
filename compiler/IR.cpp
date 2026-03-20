@@ -65,7 +65,7 @@ void IRInstr::gen_asm(ostream &o)
 
         case cmp_eq:
         case cmp_lt:
-        case cmp_le:
+        case cmp_gt:
         {
             // params: x, y, dest
             string x = params[0];
@@ -80,8 +80,8 @@ void IRInstr::gen_asm(ostream &o)
                 o << "    sete %al\n";
             else if (op == cmp_lt)
                 o << "    setl %al\n";
-            else if (op == cmp_le)
-                o << "    setle %al\n";
+            else if (op == cmp_gt)
+                o << "    setg %al\n";
 
             o << "    movzbl %al, %eax\n";
             o << "    movl %eax, " << cfg->IR_reg_to_asm(dest) << "\n";
@@ -98,6 +98,16 @@ void IRInstr::gen_asm(ostream &o)
             o << "    movl %eax, " << cfg->IR_reg_to_asm(dest) << "\n";
             break;
         }
+
+        case ret:
+        {
+            string retval = params[0];
+            o << "    movl " << cfg->IR_reg_to_asm(retval) << ", %eax\n";
+            o << "    jmp " << cfg->bbs.back()->label << "\n"; 
+            break;
+        }
+
+        
 
         default:
             cerr << "Unsupported IR operation\n";
@@ -223,6 +233,3 @@ Type CFG::get_var_type(string name)
 {
     return SymbolType[name];
 }
-
-
-
