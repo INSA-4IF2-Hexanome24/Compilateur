@@ -5,10 +5,16 @@
 #include <string>
 #include <iostream>
 #include <initializer_list>
+#include <map>
 
-// Declarations from the parser -- replace with your own
-#include "type.h"
-#include "symbole.h"
+using std::map;
+using std::ostream;
+using std::string;
+using std::vector;
+
+enum Type {
+    TYPE_INT
+};
 
 class BasicBlock;
 class CFG;
@@ -26,10 +32,17 @@ class IRInstr {
 		add,
 		sub,
 		mul,
+		div,
+		mod,
+		band,
+		bxor,
+		bor,
 		rmem,
 		wmem,
 		call, 
+		ret,
 		cmp_eq,
+		cmp_ne,
 		cmp_lt,
 		cmp_le
 	} Operation;
