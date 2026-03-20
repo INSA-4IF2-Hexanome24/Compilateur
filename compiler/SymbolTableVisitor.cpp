@@ -222,3 +222,21 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(
     used.insert(name);
     return 0;
 }
+
+
+
+    std::string SymbolTableVisitor::currentPrefix()
+    {
+        std::vector<std::pair<int,int>>::iterator it;  
+        std::string resultat ="";
+        for(it = scopeStack.begin(); it != scopeStack.end(); it++ )
+        {
+            resultat += std::to_string(it->first) + "-";
+        }
+        return resultat;
+    }
+
+    std::string SymbolTableVisitor::resolveVar(std::string var) // renvoie le nom de la var qui est utilisé
+    {
+        
+    }

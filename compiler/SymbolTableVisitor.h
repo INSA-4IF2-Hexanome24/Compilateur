@@ -13,6 +13,12 @@ public:
     std::map<std::string, int> symbolTable;
     std::set<std::string> used;
 
+    std::vector<std::pair<int, int>> scopeStack;
+
+    std::string currentPrefix() //transforme scopeStack en le string à mettre en préfixe
+
+    std::string resolveVar(std::string var) // renvoie le nom de la var qui est utilisé
+
     int numMaxTemps = 0;
     int nextIndex = -4;
     bool success = true;
