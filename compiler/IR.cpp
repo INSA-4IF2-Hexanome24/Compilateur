@@ -43,6 +43,11 @@ void IRInstr::gen_asm(ostream &o)
         case add:
         case sub:
         case mul:
+        case div:
+        case mod:
+        case band:
+        case bxor:
+        case bor:
         {
             // params: x, y, dest
             string x = params[0];
@@ -58,12 +63,30 @@ void IRInstr::gen_asm(ostream &o)
                 o << "    subl %ecx, %eax\n";
             else if (op == mul)
                 o << "    imull %ecx, %eax\n";
+            else if (op == div)
+            {
+                o << "    cltd\n";
+                o << "    idivl %ecx\n";
+            }
+            else if (op == mod)
+            {
+                o << "    cltd\n";
+                o << "    idivl %ecx\n";
+                o << "    movl %edx, %eax\n";
+            }
+            else if (op == band)
+                o << "    andl %ecx, %eax\n";
+            else if (op == bxor)
+                o << "    xorl %ecx, %eax\n";
+            else if (op == bor)
+                o << "    orl %ecx, %eax\n";
 
             o << "    movl %eax, " << cfg->IR_reg_to_asm(dest) << "\n";
             break;
         }
 
         case cmp_eq:
+        case cmp_ne:
         case cmp_lt:
         case cmp_le:
         {
@@ -78,6 +101,8 @@ void IRInstr::gen_asm(ostream &o)
 
             if (op == cmp_eq)
                 o << "    sete %al\n";
+            else if (op == cmp_ne)
+                o << "    setne %al\n";
             else if (op == cmp_lt)
                 o << "    setl %al\n";
             else if (op == cmp_le)
@@ -90,12 +115,29 @@ void IRInstr::gen_asm(ostream &o)
 
         case call:
         {
-            // params: function_name, dest
+            // params: function_name, dest, arg1, arg2, ...
             string fname = params[0];
             string dest  = params[1];
+            static const char *argRegs[] = {
+                "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
+            };
+
+            int argCount = static_cast<int>(params.size()) - 2;
+            for (int i = 0; i < argCount && i < 6; i++)
+            {
+                o << "    movl " << cfg->IR_reg_to_asm(params[i + 2]) << ", " << argRegs[i] << "\n";
+            }
 
             o << "    call " << fname << "\n";
             o << "    movl %eax, " << cfg->IR_reg_to_asm(dest) << "\n";
+            break;
+        }
+
+        case ret:
+        {
+            // params: src
+            string src = params[0];
+            o << "    movl " << cfg->IR_reg_to_asm(src) << ", %eax\n";
             break;
         }
 
@@ -185,6 +227,20 @@ void CFG::gen_asm_prologue(ostream& o)
 
     o << "    pushq %rbp\n";
     o << "    movq %rsp, %rbp\n";
+
+    int frameSize = -nextFreeSymbolIndex - 4;
+    if (frameSize < 0)
+    {
+        frameSize = 0;
+    }
+    if (frameSize % 16 != 0)
+    {
+        frameSize += 16 - (frameSize % 16);
+    }
+    if (frameSize > 0)
+    {
+        o << "    subq $" << frameSize << ", %rsp\n";
+    }
 }
 
 void CFG::gen_asm_epilogue(ostream& o)
@@ -196,7 +252,7 @@ void CFG::gen_asm_epilogue(ostream& o)
 
 string CFG::IR_reg_to_asm(string reg)
 {
-    int idx = SymbolIndex[reg];
+    int idx = SymbolIndex.at(reg);
     return to_string(idx) + "(%rbp)";
 }
 

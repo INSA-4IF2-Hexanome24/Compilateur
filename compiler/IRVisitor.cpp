@@ -1,69 +1,59 @@
 #include "CodeGenVisitor.h"
 #include "IR.h"
+
 #include <iostream>
 #include <string>
+#include <vector>
+
+using std::string;
+using std::vector;
 
 CodeGenVisitor::CodeGenVisitor()
 {
-    numTemps = 0;
+    numMaxTemps = 0;
 }
 
-CodeGenVisitor::CodeGenVisitor(const std::map<std::string, int> &table,int numMaxTemps)
+CodeGenVisitor::CodeGenVisitor(const std::map<std::string, int> &table, int numMaxTemps)
 {
     symbolTable = table;
-    numTemps = 0;
     this->numMaxTemps = numMaxTemps;
-}
-
-void CodeGenVisitor::setTempVar(int i)
-{
-    std::string name = "_temp" + std::to_string(i);
-    int idx = symbolTable[name];
-    std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
-}
-
-void CodeGenVisitor::getTempVar(int i)
-{
-    std::string name = "_temp" + std::to_string(i);
-    int idx = symbolTable[name];
-    std::cout << "    movl  " << idx << "(%rbp), %eax\n";
 }
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
-    int frameSize = (int)(symbolTable.size()+numMaxTemps) * 4;
+    cfg = new CFG(nullptr);
 
-    if (frameSize % 16 != 0)
+    for (const auto &it : symbolTable)
     {
-        frameSize = frameSize + (16 - frameSize % 16);
+        const string &name = it.first;
+        if (name.rfind("_temp", 0) == 0)
+        {
+            continue;
+        }
+        cfg->add_to_symbol_table(name, TYPE_INT);
     }
 
-#ifdef __APPLE__
-    std::cout << ".globl _main\n";
-    std::cout << "_main:\n";
-#else
-    std::cout << ".globl main\n";
-    std::cout << "main:\n";
-#endif
+    BasicBlock *entry = new BasicBlock(cfg, "entry");
+    cfg->add_bb(entry);
+    cfg->current_bb = entry;
 
-    std::cout << "    pushq %rbp\n";
-    std::cout << "    movq  %rsp, %rbp\n";
-
-    if (frameSize > 0)
-    {
-        std::cout << "    subq  $" << frameSize << ", %rsp\n";
-    }
+    returnBB = new BasicBlock(cfg, "ret_block");
+    cfg->add_bb(returnBB);
 
     for (auto s : ctx->stmt())
     {
         visit(s);
     }
 
-    std::cout << "    fin:\n";
-    std::cout << "    movq  %rbp, %rsp\n";
-    std::cout << "    popq  %rbp\n";
-    std::cout << "    ret\n";
+    if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
+    {
+        string zero = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {zero});
+        cfg->current_bb->exit_true = returnBB;
+    }
 
+    cfg->gen_asm(std::cout);
     return 0;
 }
 
@@ -79,220 +69,155 @@ antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
     {
         if (v->expr() != nullptr)
         {
-            visit(v->expr());
-
-            std::string name = v->VAR()->getText();
-            int idx = symbolTable[name];
-            std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
+            string rhs = visit(v->expr()).as<string>();
+            string lhs = v->VAR()->getText();
+            cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
         }
     }
-
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitAssign_stmt(
-    ifccParser::Assign_stmtContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
-    visit(ctx->expr());
-
-    std::string name = ctx->VAR()->getText();
-    int idx = symbolTable[name];
-    std::cout << "    movl  %eax, " << idx << "(%rbp)\n";
-
+    string rhs = visit(ctx->expr()).as<string>();
+    string lhs = ctx->VAR()->getText();
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitReturn_stmt(
-    ifccParser::Return_stmtContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    visit(ctx->expr());
-    std::cout << "    jmp fin\n";
+    string retVal = visit(ctx->expr()).as<string>();
+    cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
+    cfg->current_bb->exit_true = returnBB;
+
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
     return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 {
-    int t = numTemps;
-    numTemps++;
-
-    std::string op = ctx->OP->getText();
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
+    string lhs = visit(ctx->expr(0)).as<string>();
+    string rhs = visit(ctx->expr(1)).as<string>();
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string op = ctx->OP->getText();
 
     if (op == "*")
     {
-        std::cout << "    imull %ecx, %eax\n";
+        cfg->current_bb->add_IRInstr(IRInstr::mul, TYPE_INT, {lhs, rhs, dst});
     }
     else if (op == "/")
     {
-        std::cout << "    cltd\n";
-        std::cout << "    idivl %ecx\n";
+        cfg->current_bb->add_IRInstr(IRInstr::div, TYPE_INT, {lhs, rhs, dst});
     }
-    else if (op == "%")
+    else
     {
-        std::cout << "    cltd\n";
-        std::cout << "    idivl %ecx\n";
-        std::cout << "    movl  %edx, %eax\n";
+        cfg->current_bb->add_IRInstr(IRInstr::mod, TYPE_INT, {lhs, rhs, dst});
     }
-    return 0;
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 {
-    int t = numTemps;
-    numTemps++;
-
-    std::string op = ctx->OP->getText();
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
+    string lhs = visit(ctx->expr(0)).as<string>();
+    string rhs = visit(ctx->expr(1)).as<string>();
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string op = ctx->OP->getText();
 
     if (op == "+")
     {
-        std::cout << "    addl  %ecx, %eax\n";
+        cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {lhs, rhs, dst});
     }
-    else if (op == "-")
+    else
     {
-        std::cout << "    subl  %ecx, %eax\n";
+        cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {lhs, rhs, dst});
     }
-
-    return 0;
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 {
-    int t = numTemps;
-    numTemps++;
-
-    std::string op = ctx->OP->getText();
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
+    string lhs = visit(ctx->expr(0)).as<string>();
+    string rhs = visit(ctx->expr(1)).as<string>();
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string op = ctx->OP->getText();
 
     if (op == "<")
     {
-        std::cout << "    cmpl  %ecx, %eax\n";
-        std::cout << "    setl  %al\n";
-        std::cout << "    movzbl %al, %eax\n";
+        cfg->current_bb->add_IRInstr(IRInstr::cmp_lt, TYPE_INT, {lhs, rhs, dst});
     }
-    else if (op == ">")
+    else
     {
-        std::cout << "    cmpl  %ecx, %eax\n";
-        std::cout << "    setg  %al\n";
-        std::cout << "    movzbl %al, %eax\n";
+        cfg->current_bb->add_IRInstr(IRInstr::cmp_lt, TYPE_INT, {rhs, lhs, dst});
     }
-
-    return 0;
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 {
-    int t = numTemps;
-    numTemps++;
-
-    std::string op = ctx->OP->getText();
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
+    string lhs = visit(ctx->expr(0)).as<string>();
+    string rhs = visit(ctx->expr(1)).as<string>();
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string op = ctx->OP->getText();
 
     if (op == "==")
     {
-        std::cout << "    cmpl  %ecx, %eax\n";
-        std::cout << "    sete  %al\n";
-        std::cout << "    movzbl %al, %eax\n";
+        cfg->current_bb->add_IRInstr(IRInstr::cmp_eq, TYPE_INT, {lhs, rhs, dst});
     }
-    else if (op == "!=")
+    else
     {
-        std::cout << "    cmpl  %ecx, %eax\n";
-        std::cout << "    setne %al\n";
-        std::cout << "    movzbl %al, %eax\n";
+        cfg->current_bb->add_IRInstr(IRInstr::cmp_ne, TYPE_INT, {lhs, rhs, dst});
     }
-
-    return 0;
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitBand(ifccParser::BandContext *ctx)
 {
-    int t = numTemps;
-    numTemps++;
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
-
-    std::cout << "    andl  %ecx, %eax\n";
-    return 0;
+    string lhs = visit(ctx->expr(0)).as<string>();
+    string rhs = visit(ctx->expr(1)).as<string>();
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::band, TYPE_INT, {lhs, rhs, dst});
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitBxor(ifccParser::BxorContext *ctx)
 {
-    int t = numTemps;
-    numTemps++;
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
-
-    std::cout << "    xorl  %ecx, %eax\n";
-    return 0;
+    string lhs = visit(ctx->expr(0)).as<string>();
+    string rhs = visit(ctx->expr(1)).as<string>();
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::bxor, TYPE_INT, {lhs, rhs, dst});
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitBor(ifccParser::BorContext *ctx)
 {
-    int t = numTemps;
-    numTemps++;
-
-    visit(ctx->expr(0));
-    setTempVar(t);
-
-    visit(ctx->expr(1));
-    std::cout << "    movl  %eax, %ecx\n";
-    getTempVar(t);
-
-    std::cout << "    orl   %ecx, %eax\n";
-    return 0;
+    string lhs = visit(ctx->expr(0)).as<string>();
+    string rhs = visit(ctx->expr(1)).as<string>();
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::bor, TYPE_INT, {lhs, rhs, dst});
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 {
-    visit(ctx->expr());
-
-    std::cout << "    cmpl  $0, %eax\n";
-    std::cout << "    sete  %al\n";
-    std::cout << "    movzbl %al, %eax\n";
-
-    return 0;
+    string val = visit(ctx->expr()).as<string>();
+    string zero = cfg->create_new_tempvar(TYPE_INT);
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+    cfg->current_bb->add_IRInstr(IRInstr::cmp_eq, TYPE_INT, {val, zero, dst});
+    return dst;
 }
 
-antlrcpp::Any CodeGenVisitor::visitUnaryMinus(
-    ifccParser::UnaryMinusContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitUnaryMinus(ifccParser::UnaryMinusContext *ctx)
 {
-    visit(ctx->expr());
-    std::cout << "    negl  %eax\n";
-    return 0;
+    string val = visit(ctx->expr()).as<string>();
+    string zero = cfg->create_new_tempvar(TYPE_INT);
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {zero, val, dst});
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitParens(ifccParser::ParensContext *ctx)
@@ -300,105 +225,123 @@ antlrcpp::Any CodeGenVisitor::visitParens(ifccParser::ParensContext *ctx)
     return visit(ctx->expr());
 }
 
-antlrcpp::Any CodeGenVisitor::visitConstExpr(
-    ifccParser::ConstExprContext *ctx)
+antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 {
-    int val = std::stoi(ctx->CONST()->getText());
-    std::cout << "    movl  $" << val << ", %eax\n";
-    return 0;
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {dst, ctx->CONST()->getText()});
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
-    std::string name = ctx->VAR()->getText();
-    int idx = symbolTable[name];
-    std::cout << "    movl  " << idx << "(%rbp), %eax\n";
-    return 0;
+    return ctx->VAR()->getText();
 }
 
 antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
 {
-    static const char *argRegs[] = {
-        "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
-    };
+    vector<string> params;
+    params.push_back(ctx->VAR()->getText());
 
-    int argCount = 0;
-    if (ctx->arg_list() != nullptr)
-    {
-        argCount = static_cast<int>(ctx->arg_list()->expr().size());
-    }
-
-    int tempBase = numTemps;
-    numTemps += argCount;
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    params.push_back(dst);
 
     if (ctx->arg_list() != nullptr)
     {
-        int i = 0;
         for (auto e : ctx->arg_list()->expr())
         {
-            visit(e);
-            setTempVar(tempBase + i);
-            i++;
-        }
-
-        for (int j = 0; j < argCount; j++)
-        {
-            std::string tempName = "_temp" + std::to_string(tempBase + j);
-            int idx = symbolTable[tempName];
-            std::cout << "    movl  " << idx << "(%rbp), " << argRegs[j] << "\n";
+            params.push_back(visit(e).as<string>());
         }
     }
 
-    std::cout << "    call  " << ctx->VAR()->getText() << "\n";
-
-    numTemps = tempBase;
-    return 0;
+    cfg->current_bb->add_IRInstr(IRInstr::call, TYPE_INT, params);
+    return dst;
 }
 
 antlrcpp::Any CodeGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
-    int n = labelCount++;
-    std::string elseLabel = ".Lelse_" + std::to_string(n);
-    std::string endLabel = ".Lend_" + std::to_string(n);
+    string cond = visit(ctx->expr()).as<string>();
 
-    visit(ctx->expr());
-    std::cout << "    cmpl  $0, %eax\n";
-    std::cout << "    je    " << elseLabel << "\n";
+    BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(thenBB);
 
-    visit(ctx->block(0)); // then
-    std::cout << "    jmp   " << endLabel << "\n";
+    cfg->current_bb->test_var_name = cond;
 
-    std::cout << elseLabel << ":\n";
     if (ctx->block().size() > 1)
-        visit(ctx->block(1)); // else
+    {
+        BasicBlock *elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(elseBB);
+        cfg->add_bb(afterBB);
 
-    std::cout << endLabel << ":\n";
+        cfg->current_bb->exit_true = thenBB;
+        cfg->current_bb->exit_false = elseBB;
+
+        cfg->current_bb = thenBB;
+        visit(ctx->block(0));
+        if (thenBB->exit_true == nullptr && thenBB->exit_false == nullptr)
+        {
+            thenBB->exit_true = afterBB;
+        }
+
+        cfg->current_bb = elseBB;
+        visit(ctx->block(1));
+        if (elseBB->exit_true == nullptr && elseBB->exit_false == nullptr)
+        {
+            elseBB->exit_true = afterBB;
+        }
+    }
+    else
+    {
+        cfg->add_bb(afterBB);
+        cfg->current_bb->exit_true = thenBB;
+        cfg->current_bb->exit_false = afterBB;
+
+        cfg->current_bb = thenBB;
+        visit(ctx->block(0));
+        if (thenBB->exit_true == nullptr && thenBB->exit_false == nullptr)
+        {
+            thenBB->exit_true = afterBB;
+        }
+    }
+
+    cfg->current_bb = afterBB;
     return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx)
 {
     for (auto s : ctx->stmt())
+    {
         visit(s);
+    }
     return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {
-    int n = labelCount++;
-    std::string startLabel = ".Lwhile_" + std::to_string(n);
-    std::string endLabel   = ".Lend_"   + std::to_string(n);
+    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
 
-    std::cout << startLabel << ":\n";
+    cfg->add_bb(condBB);
+    cfg->add_bb(bodyBB);
+    cfg->add_bb(afterBB);
 
-    visit(ctx->expr());
-    std::cout << "    cmpl  $0, %eax\n";
-    std::cout << "    je    " << endLabel << "\n";
+    cfg->current_bb->exit_true = condBB;
 
+    cfg->current_bb = condBB;
+    string cond = visit(ctx->expr()).as<string>();
+    condBB->test_var_name = cond;
+    condBB->exit_true = bodyBB;
+    condBB->exit_false = afterBB;
+
+    cfg->current_bb = bodyBB;
     visit(ctx->block());
+    if (bodyBB->exit_true == nullptr && bodyBB->exit_false == nullptr)
+    {
+        bodyBB->exit_true = condBB;
+    }
 
-    std::cout << "    jmp   " << startLabel << "\n";
-    std::cout << endLabel << ":\n";
-
+    cfg->current_bb = afterBB;
     return 0;
 }
