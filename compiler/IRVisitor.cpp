@@ -263,7 +263,7 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
     string cond = any_cast<string>(visit(ctx->expr()));
 
-    BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *thenBB  = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
     cfg->add_bb(thenBB);
 
@@ -275,35 +275,35 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
         cfg->add_bb(elseBB);
         cfg->add_bb(afterBB);
 
-        cfg->current_bb->exit_true = thenBB;
+        cfg->current_bb->exit_true  = thenBB;
         cfg->current_bb->exit_false = elseBB;
 
+        // then
         cfg->current_bb = thenBB;
         visit(ctx->block(0));
-        if (thenBB->exit_true == nullptr && thenBB->exit_false == nullptr)
-        {
-            thenBB->exit_true = afterBB;
-        }
+        BasicBlock* lastThenBB = cfg->current_bb; // capture après visite
+        if (lastThenBB->exit_true == nullptr && lastThenBB->exit_false == nullptr)
+            lastThenBB->exit_true = afterBB;
 
+        // else
         cfg->current_bb = elseBB;
         visit(ctx->block(1));
-        if (elseBB->exit_true == nullptr && elseBB->exit_false == nullptr)
-        {
-            elseBB->exit_true = afterBB;
-        }
+        BasicBlock* lastElseBB = cfg->current_bb; // capture après visite
+        if (lastElseBB->exit_true == nullptr && lastElseBB->exit_false == nullptr)
+            lastElseBB->exit_true = afterBB;
     }
     else
     {
         cfg->add_bb(afterBB);
-        cfg->current_bb->exit_true = thenBB;
+        cfg->current_bb->exit_true  = thenBB;
         cfg->current_bb->exit_false = afterBB;
 
+        // then
         cfg->current_bb = thenBB;
         visit(ctx->block(0));
-        if (thenBB->exit_true == nullptr && thenBB->exit_false == nullptr)
-        {
-            thenBB->exit_true = afterBB;
-        }
+        BasicBlock* lastThenBB = cfg->current_bb; // capture après visite
+        if (lastThenBB->exit_true == nullptr && lastThenBB->exit_false == nullptr)
+            lastThenBB->exit_true = afterBB;
     }
 
     cfg->current_bb = afterBB;
