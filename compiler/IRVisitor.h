@@ -7,10 +7,7 @@
 #include <map>
 #include <string>
 
-class CFG;
-class BasicBlock;
-
-class CodeGenVisitor : public ifccBaseVisitor {
+class IRVisitor : public ifccBaseVisitor {
 public:
     std::map<std::string, int> symbolTable;
     int labelCount = 0;
@@ -18,8 +15,11 @@ public:
     CFG *cfg = nullptr;
     BasicBlock *returnBB = nullptr;
 
-    CodeGenVisitor();
-    CodeGenVisitor(const std::map<std::string, int> &table, int numMaxTemps);
+    IRVisitor();
+    IRVisitor(const std::map<std::string, int> &table, int numMaxTemps);
+
+    void setCFG(CFG* newCfg);
+    std::string newTemp(Type t);
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitExpr_stmt(
