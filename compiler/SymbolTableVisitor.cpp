@@ -3,27 +3,145 @@
 #include <iostream>
 #include <string>
 
+antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
+{
+    functionTable["getchar"] = FunctionInfo{0, true};
+    functionTable["putchar"] = FunctionInfo{1, true};
+
+    bool hasMain = false;
+
+    for (auto fn : ctx->function_def())
+    {
+        std::string name = fn->VAR()->getText();
+        int arity = 0;
+        if (fn->param_list() != nullptr)
+        {
+            arity = static_cast<int>(fn->param_list()->param().size());
+        }
+
+        if (arity > 6)
+        {
+            std::cerr << "error: function '" << name
+                      << "' has more than 6 parameters, which is not supported yet\n";
+            success = false;
+        }
+
+        if (functionTable.count(name))
+        {
+            std::cerr << "error: function '" << name
+                      << "' declared more than once\n";
+            success = false;
+            continue;
+        }
+
+        functionTable[name] = FunctionInfo{arity, false};
+        if (name == "main")
+        {
+            hasMain = true;
+        }
+    }
+
+    if (!hasMain)
+    {
+        std::cerr << "error: missing function 'main'\n";
+        success = false;
+    }
+
+    for (auto fn : ctx->function_def())
+    {
+        visit(fn);
+    }
+
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitFunction_def(
+    ifccParser::Function_defContext *ctx)
+{
+    currentFunction = ctx->VAR()->getText();
+    currentSymbolTable.clear();
+    currentUsed.clear();
+    currentNumMaxTemps = 0;
+    currentNextIndex = -4;
+
+    if (ctx->param_list() != nullptr)
+    {
+        for (auto param : ctx->param_list()->param())
+        {
+            std::string name = param->VAR()->getText();
+            if (currentSymbolTable.count(name))
+            {
+                std::cerr << "error: parameter '" << name
+                          << "' declared more than once in function '"
+                          << currentFunction << "'\n";
+                success = false;
+                continue;
+            }
+
+            currentSymbolTable[name] = currentNextIndex;
+            currentNextIndex -= 4;
+        }
+    }
+
+    visit(ctx->block());
+
+    for (int i = 0; i < currentNumMaxTemps; i++)
+    {
+        std::string name = "_temp" + std::to_string(i);
+        currentSymbolTable[name] = currentNextIndex;
+        currentNextIndex -= 4;
+    }
+
+    for (auto &it : currentSymbolTable)
+    {
+        std::string name = it.first;
+
+        if (name.rfind("_temp", 0) == 0)
+        {
+            continue;
+        }
+
+        if (currentUsed.find(name) == currentUsed.end())
+        {
+            std::cerr << "warning: variable '" << name
+                      << "' declared but never used in function '"
+                      << currentFunction << "'\n";
+        }
+    }
+
+    std::cerr << "=== Symbol Table (" << currentFunction << ") ===\n";
+    for (auto &it : currentSymbolTable)
+    {
+        std::cerr << "  " << it.first << " -> [rbp" << it.second << "]\n";
+    }
+    std::cerr << "====================\n";
+
+    if (currentFunction == "main")
+    {
+        symbolTable = currentSymbolTable;
+        used = currentUsed;
+        numMaxTemps = currentNumMaxTemps;
+        nextIndex = currentNextIndex;
+    }
+
+    return 0;
+}
+
 antlrcpp::Any SymbolTableVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {
     visit(ctx->expr());
-
-    // visit loop body (always present, index 0)
     visit(ctx->block());
-
     return 0;
 }
 
 antlrcpp::Any SymbolTableVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
     visit(ctx->expr());
-
-    // visit then-block (always present, index 0)
     visit(ctx->block(0));
-
-    // visit else-block if present
     if (ctx->block().size() > 1)
+    {
         visit(ctx->block(1));
-
+    }
     return 0;
 }
 
@@ -35,21 +153,44 @@ antlrcpp::Any SymbolTableVisitor::visitExpr_stmt(ifccParser::Expr_stmtContext *c
 
 antlrcpp::Any SymbolTableVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
 {
+    std::string name = ctx->VAR()->getText();
     int argCount = 0;
-    if (ctx->arg_list() != nullptr) {
+    if (ctx->arg_list() != nullptr)
+    {
         argCount = static_cast<int>(ctx->arg_list()->expr().size());
     }
 
-    if (argCount > 6) {
+    if (!functionTable.count(name))
+    {
+        std::cerr << "error: function '" << name
+                  << "' called but not declared\n";
+        success = false;
+        return 0;
+    }
+
+    if (functionTable[name].arity != argCount)
+    {
+        std::cerr << "error: function '" << name
+                  << "' called with " << argCount
+                  << " arguments but expects "
+                  << functionTable[name].arity << "\n";
+        success = false;
+        return 0;
+    }
+
+    if (argCount > 6)
+    {
         std::cerr << "error: functions with more than 6 arguments are not supported yet\n";
         success = false;
         return 0;
     }
 
-    numMaxTemps += argCount;
+    currentNumMaxTemps += argCount;
 
-    if (ctx->arg_list() != nullptr) {
-        for (auto e : ctx->arg_list()->expr()) {
+    if (ctx->arg_list() != nullptr)
+    {
+        for (auto e : ctx->arg_list()->expr())
+        {
             visit(e);
         }
     }
@@ -60,49 +201,9 @@ antlrcpp::Any SymbolTableVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx
 antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx)
 {
     for (auto s : ctx->stmt())
+    {
         visit(s);
-    return 0;
-}
-
-antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
-{
-    for (auto stmt : ctx->stmt())
-    {
-        visit(stmt);
     }
-
-    //visit(ctx->return_stmt());
-
-    for (int i = 0; i<numMaxTemps;i++)
-    {
-        std::string name = "_temp"+std::to_string(i);
-        symbolTable[name] = nextIndex;
-        nextIndex -=4;
-    }
-
-    for (auto &it : symbolTable)
-    {
-        std::string name = it.first;
-
-        if (name.rfind("_temp", 0) == 0)
-        {
-            continue;
-        }
-
-        if (used.find(name) == used.end())
-        {
-            std::cerr << "warning: variable '" << name
-                      << "' declared but never used\n";
-        }
-    }
-
-    std::cerr << "=== Symbol Table ===\n";
-    for (auto &it : symbolTable)
-    {
-        std::cerr << "  " << it.first << " -> [rbp" << it.second << "]\n";
-    }
-    std::cerr << "====================\n";
-
     return 0;
 }
 
@@ -112,7 +213,7 @@ antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *c
     {
         std::string name = varDecl->VAR()->getText();
 
-        if (symbolTable.count(name))
+        if (currentSymbolTable.count(name))
         {
             std::cerr << "error: variable '" << name
                       << "' declared more than once\n";
@@ -120,8 +221,8 @@ antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *c
             continue;
         }
 
-        symbolTable[name] = nextIndex;
-        nextIndex -= 4;
+        currentSymbolTable[name] = currentNextIndex;
+        currentNextIndex -= 4;
 
         if (varDecl->expr() != nullptr)
         {
@@ -137,7 +238,7 @@ antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(
 {
     std::string name = ctx->VAR()->getText();
 
-    if (!symbolTable.count(name))
+    if (!currentSymbolTable.count(name))
     {
         std::cerr << "error: variable '" << name
                   << "' used before declaration\n";
@@ -149,10 +250,9 @@ antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(
     return 0;
 }
 
-
 antlrcpp::Any SymbolTableVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 {
-    numMaxTemps++;
+    currentNumMaxTemps++;
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
@@ -160,7 +260,7 @@ antlrcpp::Any SymbolTableVisitor::visitMultdivmod(ifccParser::MultdivmodContext 
 
 antlrcpp::Any SymbolTableVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 {
-    numMaxTemps++;
+    currentNumMaxTemps++;
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
@@ -168,7 +268,7 @@ antlrcpp::Any SymbolTableVisitor::visitPlusminus(ifccParser::PlusminusContext *c
 
 antlrcpp::Any SymbolTableVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 {
-    numMaxTemps++;
+    currentNumMaxTemps++;
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
@@ -176,7 +276,7 @@ antlrcpp::Any SymbolTableVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 
 antlrcpp::Any SymbolTableVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 {
-    numMaxTemps++;
+    currentNumMaxTemps++;
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
@@ -184,7 +284,7 @@ antlrcpp::Any SymbolTableVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 
 antlrcpp::Any SymbolTableVisitor::visitBand(ifccParser::BandContext *ctx)
 {
-    numMaxTemps++;
+    currentNumMaxTemps++;
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
@@ -192,7 +292,7 @@ antlrcpp::Any SymbolTableVisitor::visitBand(ifccParser::BandContext *ctx)
 
 antlrcpp::Any SymbolTableVisitor::visitBxor(ifccParser::BxorContext *ctx)
 {
-    numMaxTemps++;
+    currentNumMaxTemps++;
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
@@ -200,7 +300,7 @@ antlrcpp::Any SymbolTableVisitor::visitBxor(ifccParser::BxorContext *ctx)
 
 antlrcpp::Any SymbolTableVisitor::visitBor(ifccParser::BorContext *ctx)
 {
-    numMaxTemps++;
+    currentNumMaxTemps++;
     visit(ctx->expr(0));
     visit(ctx->expr(1));
     return 0;
@@ -211,7 +311,7 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(
 {
     std::string name = ctx->VAR()->getText();
 
-    if (!symbolTable.count(name))
+    if (!currentSymbolTable.count(name))
     {
         std::cerr << "error: variable '" << name
                   << "' used before declaration\n";
@@ -219,24 +319,6 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(
         return 0;
     }
 
-    used.insert(name);
+    currentUsed.insert(name);
     return 0;
 }
-
-
-
-    std::string SymbolTableVisitor::currentPrefix()
-    {
-        std::vector<std::pair<int,int>>::iterator it;  
-        std::string resultat ="";
-        for(it = scopeStack.begin(); it != scopeStack.end(); it++ )
-        {
-            resultat += std::to_string(it->first) + "-";
-        }
-        return resultat;
-    }
-
-    std::string SymbolTableVisitor::resolveVar(std::string var) // renvoie le nom de la var qui est utilisé
-    {
-        
-    }

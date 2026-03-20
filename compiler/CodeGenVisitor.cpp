@@ -1,5 +1,6 @@
 #include "CodeGenVisitor.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <string>
 
@@ -31,6 +32,19 @@ void CodeGenVisitor::getTempVar(int i)
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
+    if (ctx->function_def().size() != 1)
+    {
+        std::cerr << "error: function code generation is not implemented yet for multi-function programs\n";
+        std::exit(1);
+    }
+
+    auto fn = ctx->function_def(0);
+    if (fn->VAR()->getText() != "main" || fn->param_list() != nullptr)
+    {
+        std::cerr << "error: function code generation is only implemented for 'int main()' at the moment\n";
+        std::exit(1);
+    }
+
     int frameSize = (int)(symbolTable.size()+numMaxTemps) * 4;
 
     if (frameSize % 16 != 0)
@@ -54,7 +68,7 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
         std::cout << "    subq  $" << frameSize << ", %rsp\n";
     }
 
-    for (auto s : ctx->stmt())
+    for (auto s : fn->block()->stmt())
     {
         visit(s);
     }

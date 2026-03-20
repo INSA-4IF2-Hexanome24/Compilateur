@@ -7,23 +7,26 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
+
+struct FunctionInfo {
+    int arity = 0;
+    bool isBuiltin = false;
+};
 
 class SymbolTableVisitor : public ifccBaseVisitor {
 public:
+    std::map<std::string, FunctionInfo> functionTable;
     std::map<std::string, int> symbolTable;
     std::set<std::string> used;
-
-    std::vector<std::pair<int, int>> scopeStack;
-
-    std::string currentPrefix() //transforme scopeStack en le string à mettre en préfixe
-
-    std::string resolveVar(std::string var) // renvoie le nom de la var qui est utilisé
 
     int numMaxTemps = 0;
     int nextIndex = -4;
     bool success = true;
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
+    virtual antlrcpp::Any visitFunction_def(
+        ifccParser::Function_defContext *ctx) override;
     virtual antlrcpp::Any visitExpr_stmt(
         ifccParser::Expr_stmtContext *ctx) override;
     virtual antlrcpp::Any visitDecl_stmt(
@@ -45,4 +48,11 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
+
+private:
+    std::string currentFunction;
+    std::map<std::string, int> currentSymbolTable;
+    std::set<std::string> currentUsed;
+    int currentNumMaxTemps = 0;
+    int currentNextIndex = -4;
 };
