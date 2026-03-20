@@ -15,9 +15,9 @@ public:
 
     std::vector<std::pair<int, int>> scopeStack;
 
-    std::string currentPrefix() //transforme scopeStack en le string à mettre en préfixe
+    std::string currentPrefix(); //transforme scopeStack en le string à mettre en préfixe
 
-    std::string resolveVar(std::string var) // renvoie le nom de la var qui est utilisé
+    std::string resolveVar(std::string var); // renvoie le nom de la var qui est utilisé
 
     int numMaxTemps = 0;
     int nextIndex = -4;
