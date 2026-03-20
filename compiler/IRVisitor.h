@@ -3,6 +3,7 @@
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
 #include "generated/ifccParser.h"
+#include "IR.h"
 
 #include <map>
 #include <string>
@@ -17,9 +18,6 @@ public:
 
     IRVisitor();
     IRVisitor(const std::map<std::string, int> &table, int numMaxTemps);
-
-    void setCFG(CFG* newCfg);
-    std::string newTemp(Type t);
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitExpr_stmt(

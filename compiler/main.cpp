@@ -9,7 +9,7 @@
 #include "generated/ifccBaseVisitor.h"
 
 #include "SymbolTableVisitor.h"   // <-- nouveau
-#include "CodeGenVisitor.h"
+#include "IRVisitor.h"
 
 using namespace antlr4;
 using namespace std;
@@ -57,8 +57,8 @@ int main(int argn, const char **argv)
     }
 
     // --- Pass 2 : code generation (reuses the symbol table) ---
-    CodeGenVisitor cgv(stv.symbolTable, stv.numMaxTemps);
-    cgv.visit(tree);
+    IRVisitor irv(stv.symbolTable, stv.numMaxTemps);
+    irv.visit(tree);
 
     return 0;
 }
