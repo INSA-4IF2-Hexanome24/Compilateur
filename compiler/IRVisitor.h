@@ -15,9 +15,13 @@ public:
     int numMaxTemps;
     CFG *cfg = nullptr;
     BasicBlock *returnBB = nullptr;
+    std::vector<std::pair<int,int>> scopeStack;
 
     IRVisitor();
     IRVisitor(const std::map<std::string, int> &table, int numMaxTemps);
+
+    std::string currentPrefix();
+    std::string resolveVar(std::string var);
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitExpr_stmt(

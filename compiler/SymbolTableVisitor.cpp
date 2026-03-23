@@ -59,8 +59,29 @@ antlrcpp::Any SymbolTableVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx
 
 antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx)
 {
+    std::pair<int,int>* parent = nullptr;  // pointeur, null si pas de parent
+    std::pair<int,int> enfant;
+
+    if (!scopeStack.empty())
+    {
+        parent = &scopeStack.back();
+        enfant = {parent->second, 0};
+    }
+    else
+    {
+        enfant = {0, 0};
+    }
+
+    scopeStack.push_back(enfant);
+
     for (auto s : ctx->stmt())
         visit(s);
+
+    scopeStack.pop_back();
+
+    if (parent != nullptr)
+        parent->second++;
+
     return 0;
 }
 
@@ -111,6 +132,7 @@ antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *c
     for (auto varDecl : ctx->var_decl_list()->var_decl())
     {
         std::string name = varDecl->VAR()->getText();
+        name = currentPrefix() + name; 
 
         if (symbolTable.count(name))
         {
@@ -136,6 +158,8 @@ antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(
     ifccParser::Assign_stmtContext *ctx)
 {
     std::string name = ctx->VAR()->getText();
+
+    name = resolveVar(name);
 
     if (!symbolTable.count(name))
     {
@@ -210,6 +234,7 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(
     ifccParser::VarExprContext *ctx)
 {
     std::string name = ctx->VAR()->getText();
+    name = resolveVar(name);
 
     if (!symbolTable.count(name))
     {
@@ -236,7 +261,20 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(
         return resultat;
     }
 
-    std::string SymbolTableVisitor::resolveVar(std::string var) // renvoie le nom de la var qui est utilisé
+std::string SymbolTableVisitor::resolveVar(std::string var)
+{
+    // essaie du scope le plus profond au plus global
+    for (int i = scopeStack.size(); i >= 0; i--)
     {
-      
+        // construire le préfixe avec les i premiers éléments de scopeStack
+        std::string prefix = "";
+        for (int j = 0; j < i; j++)
+        {
+            prefix += std::to_string(scopeStack[j].first) + "-";
+        }
+        std::string candidate = prefix + var;
+        if (symbolTable.count(candidate))
+            return candidate;
     }
+    return var; // pas trouvé
+}

@@ -72,7 +72,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
         if (v->expr() != nullptr)
         {
             string rhs = any_cast<string>(visit(v->expr()));
-            string lhs = v->VAR()->getText();
+            string lhs = currentPrefix()+v->VAR()->getText();
             cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
         }
     }
@@ -83,6 +83,7 @@ antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
     string rhs = any_cast<string>(visit(ctx->expr()));
     string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
     cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
     return 0;
 }
@@ -236,6 +237,7 @@ antlrcpp::Any IRVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 
 antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
+
     return ctx->VAR()->getText();
 }
 
@@ -308,10 +310,31 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext *ctx)
 {
+    pair<int,int>* parent = nullptr;  // pointeur, null si pas de parent
+    pair<int,int> enfant;
+
+    if (!scopeStack.empty())
+    {
+        parent = &scopeStack.back();
+        enfant = {parent->second, 0};
+    }
+    else
+    {
+        enfant = {0, 0};
+    }
+
+    scopeStack.push_back(enfant);
+
     for (auto s : ctx->stmt())
     {
         visit(s);
     }
+
+    scopeStack.pop_back();
+
+    if (parent != nullptr)
+        {parent->second++;}
+    
     return 0;
 }
 
@@ -344,3 +367,31 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
     return 0;
 }
 
+    std::string IRVisitor::currentPrefix()
+    {
+        std::vector<pair<int,int>>::iterator it;  
+        std::string resultat ="";
+        for(it = scopeStack.begin(); it != scopeStack.end(); it++ )
+        {
+            resultat += std::to_string(it->first) + "-";
+        }
+        return resultat;
+    }
+
+std::string IRVisitor::resolveVar(std::string var)
+{
+    // essaie du scope le plus profond au plus global
+    for (int i = scopeStack.size(); i >= 0; i--)
+    {
+        // construire le préfixe avec les i premiers éléments de scopeStack
+        std::string prefix = "";
+        for (int j = 0; j < i; j++)
+        {
+            prefix += std::to_string(scopeStack[j].first) + "-";
+        }
+        std::string candidate = prefix + var;
+        if (symbolTable.count(candidate))
+            return candidate;
+    }
+    return var; // pas trouvé
+}
