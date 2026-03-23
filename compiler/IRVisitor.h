@@ -6,20 +6,24 @@
 #include "IR.h"
 
 #include <map>
+#include <set>
 #include <string>
+#include <vector>
 
 class IRVisitor : public ifccBaseVisitor {
 public:
-    std::map<std::string, int> symbolTable;
-    int labelCount = 0;
-    int numMaxTemps;
+    std::map<std::string, int> functionArity;
+    std::set<std::string> currentSymbols;
+    std::string currentFunction;
     CFG *cfg = nullptr;
     BasicBlock *returnBB = nullptr;
+    bool success = true;
 
     IRVisitor();
-    IRVisitor(const std::map<std::string, int> &table, int numMaxTemps);
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
+    virtual antlrcpp::Any visitFunction_def(
+        ifccParser::Function_defContext *ctx) override;
     virtual antlrcpp::Any visitExpr_stmt(
         ifccParser::Expr_stmtContext *ctx) override;
     virtual antlrcpp::Any visitDecl_stmt(

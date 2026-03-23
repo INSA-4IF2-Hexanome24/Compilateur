@@ -18,7 +18,6 @@ enum Type {
 
 class BasicBlock;
 class CFG;
-class DefFonction;
 
 
 //! The class for one 3-address instruction
@@ -127,9 +126,7 @@ class BasicBlock {
  */
 class CFG {
  public:
-	CFG(DefFonction* ast);
-
-	DefFonction* ast; /**< The AST this CFG comes from */
+	CFG(const string& functionName);
 	
 	void add_bb(BasicBlock* bb); 
 
@@ -141,6 +138,8 @@ class CFG {
 
 	// symbol table methods
 	void add_to_symbol_table(string name, Type t);
+	void set_param_order(const vector<string>& params);
+	bool has_symbol(const string& name) const;
 	string create_new_tempvar(Type t);
 	int get_var_index(string name);
 	Type get_var_type(string name);
@@ -152,6 +151,8 @@ class CFG {
  protected:
 	map <string, Type> SymbolType; /**< part of the symbol table  */
 	map <string, int> SymbolIndex; /**< part of the symbol table  */
+	vector<string> paramOrder;
+	string functionName;
 	int nextFreeSymbolIndex; /**< to allocate new symbols in the symbol table */
 	int nextBBnumber; /**< just for naming */
 	
