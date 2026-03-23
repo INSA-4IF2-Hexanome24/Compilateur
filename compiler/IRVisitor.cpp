@@ -89,13 +89,26 @@ antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    string retVal = any_cast<string>(visit(ctx->expr()));
-    cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
+    if (ctx->expr() != nullptr)
+    {
+        // return avec valeur
+        string retVal = any_cast<string>(visit(ctx->expr()));
+        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
+    }
+    else
+    {
+        // return void → on retourne 0 (convention simple)
+        string zero = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {zero});
+    }
+
     cfg->current_bb->exit_true = returnBB;
 
     BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
     cfg->add_bb(dead);
     cfg->current_bb = dead;
+
     return 0;
 }
 

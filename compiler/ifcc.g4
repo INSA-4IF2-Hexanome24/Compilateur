@@ -6,6 +6,7 @@ axiom
 
 prog
   : 'int' 'main' '(' ')' '{' stmt* '}'
+  | 'void' 'main' '(' ')' '{' stmt* '}'
   ;
 
 // ----------------------
@@ -49,6 +50,7 @@ assign_stmt
 
 return_stmt
   : 'return' expr ';'
+  | 'return' ';'
   ;
 
 if_stmt
