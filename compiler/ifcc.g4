@@ -60,7 +60,7 @@ assign_stmt
   ;
 
 return_stmt
-  : 'return' expr ';'
+  : 'return' expr? ';'
   ;
 
 if_stmt
@@ -110,5 +110,6 @@ CONST : [0-9]+;
 VAR   : [a-zA-Z_][a-zA-Z_0-9]*;
 
 COMMENT   : '/*' .*? '*/' -> skip;
+LINE_COMMENT : '//' ~[\r\n]* -> skip;
 DIRECTIVE : '#' .*? '\n'  -> skip;
 WS        : [ \t\r\n]+ -> skip;

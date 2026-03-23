@@ -14,6 +14,7 @@ class IRVisitor : public ifccBaseVisitor {
 public:
     std::map<std::string, int> functionArity;
     std::set<std::string> currentSymbols;
+    std::vector<std::set<std::string>> scopeStack;
     std::string currentFunction;
     CFG *cfg = nullptr;
     BasicBlock *returnBB = nullptr;
@@ -54,4 +55,7 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
+
+private:
+    bool isDeclaredInScope(const std::string &name) const;
 };
