@@ -5,47 +5,79 @@
 #include <string>
 #include <vector>
 
-using std::string;
-using std::vector;
-
 using namespace std;
 
-IRVisitor::IRVisitor()
-{
-    numMaxTemps = 0;
-}
-
-IRVisitor::IRVisitor(const std::map<std::string, int> &table, int numMaxTemps)
-{
-    symbolTable = table;
-    this->numMaxTemps = numMaxTemps;
-}
+IRVisitor::IRVisitor() = default;
 
 antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
-    cfg = new CFG(nullptr);
-
-    for (const auto &it : symbolTable)
+    for (auto f : ctx->function_def())
     {
-        const string &name = it.first;
-        if (name.rfind("_temp", 0) == 0)
+        string name = f->VAR()->getText();
+        if (functionArity.count(name))
         {
+            cerr << "error: function '" << name << "' declared more than once\n";
+            success = false;
             continue;
         }
-        cfg->add_to_symbol_table(name, TYPE_INT);
+
+        int arity = 0;
+        if (f->param_list() != nullptr)
+        {
+            arity = static_cast<int>(f->param_list()->param().size());
+        }
+        functionArity[name] = arity;
     }
 
-    BasicBlock *entry = new BasicBlock(cfg, "entry");
+    if (!functionArity.count("main"))
+    {
+        cerr << "error: missing required 'main' function\n";
+        success = false;
+        return 0;
+    }
+
+    for (auto f : ctx->function_def())
+    {
+        visit(f);
+    }
+
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
+{
+    currentFunction = ctx->VAR()->getText();
+    cfg = new CFG(currentFunction);
+    currentSymbols.clear();
+
+    vector<string> params;
+    if (ctx->param_list() != nullptr)
+    {
+        for (auto p : ctx->param_list()->param())
+        {
+            string pname = p->VAR()->getText();
+            if (currentSymbols.count(pname))
+            {
+                cerr << "error: parameter '" << pname << "' declared more than once in function '"
+                     << currentFunction << "'\n";
+                success = false;
+                continue;
+            }
+            currentSymbols.insert(pname);
+            cfg->add_to_symbol_table(pname, TYPE_INT);
+            params.push_back(pname);
+        }
+    }
+    cfg->set_param_order(params);
+
+    BasicBlock *entry = new BasicBlock(cfg, currentFunction + "_entry");
     cfg->add_bb(entry);
     cfg->current_bb = entry;
 
-    returnBB = new BasicBlock(cfg, "ret_block");
+    returnBB = new BasicBlock(cfg, currentFunction + "_ret");
     cfg->add_bb(returnBB);
 
-    for (auto s : ctx->stmt())
-    {
-        visit(s);
-    }
+    visit(ctx->block());
 
     if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
     {
@@ -55,7 +87,10 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
         cfg->current_bb->exit_true = returnBB;
     }
 
-    cfg->gen_asm(std::cout);
+    if (success)
+    {
+        cfg->gen_asm(std::cout);
+    }
     return 0;
 }
 
@@ -69,10 +104,21 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 {
     for (auto v : ctx->var_decl_list()->var_decl())
     {
+        string lhs = v->VAR()->getText();
+        if (currentSymbols.count(lhs))
+        {
+            cerr << "error: variable '" << lhs << "' declared more than once in function '"
+                 << currentFunction << "'\n";
+            success = false;
+            continue;
+        }
+
+        currentSymbols.insert(lhs);
+        cfg->add_to_symbol_table(lhs, TYPE_INT);
+
         if (v->expr() != nullptr)
         {
             string rhs = any_cast<string>(visit(v->expr()));
-            string lhs = v->VAR()->getText();
             cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
         }
     }
@@ -81,8 +127,16 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
-    string rhs = any_cast<string>(visit(ctx->expr()));
     string lhs = ctx->VAR()->getText();
+    if (!cfg->has_symbol(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    string rhs = any_cast<string>(visit(ctx->expr()));
     cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
     return 0;
 }
@@ -249,13 +303,48 @@ antlrcpp::Any IRVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 
 antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
-    return ctx->VAR()->getText();
+    string name = ctx->VAR()->getText();
+    if (!cfg->has_symbol(name))
+    {
+        cerr << "error: variable '" << name << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        string zero = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+        return zero;
+    }
+    return name;
 }
 
 antlrcpp::Any IRVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
 {
+    string fname = ctx->VAR()->getText();
+    int argCount = 0;
+    if (ctx->arg_list() != nullptr)
+    {
+        argCount = static_cast<int>(ctx->arg_list()->expr().size());
+    }
+
+    if (!functionArity.count(fname))
+    {
+        cerr << "error: call to unknown function '" << fname << "'\n";
+        success = false;
+    }
+    else if (functionArity[fname] != argCount)
+    {
+        cerr << "error: function '" << fname << "' expects " << functionArity[fname]
+             << " argument(s), got " << argCount << "\n";
+        success = false;
+    }
+
+    if (argCount > 6)
+    {
+        cerr << "error: functions with more than 6 arguments are not supported yet\n";
+        success = false;
+    }
+
     vector<string> params;
-    params.push_back(ctx->VAR()->getText());
+    params.push_back(fname);
 
     string dst = cfg->create_new_tempvar(TYPE_INT);
     params.push_back(dst);
@@ -291,28 +380,34 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
         cfg->current_bb->exit_true  = thenBB;
         cfg->current_bb->exit_false = elseBB;
 
-        // then
         cfg->current_bb = thenBB;
         visit(ctx->block(0));
-        BasicBlock* lastThenBB = cfg->current_bb; // capture après visite
+        BasicBlock *lastThenBB = cfg->current_bb;
+        if (lastThenBB->exit_true == nullptr && lastThenBB->exit_false == nullptr)
+        {
             lastThenBB->exit_true = afterBB;
+        }
 
-        // else
         cfg->current_bb = elseBB;
         visit(ctx->block(1));
-        BasicBlock* lastElseBB = cfg->current_bb; // capture après visite
+        BasicBlock *lastElseBB = cfg->current_bb;
+        if (lastElseBB->exit_true == nullptr && lastElseBB->exit_false == nullptr)
+        {
             lastElseBB->exit_true = afterBB;
+        }
     }
     else
     {
         cfg->current_bb->exit_true  = thenBB;
         cfg->current_bb->exit_false = afterBB;
 
-        // then
         cfg->current_bb = thenBB;
         visit(ctx->block(0));
-        BasicBlock* lastThenBB = cfg->current_bb; // capture après visite
+        BasicBlock *lastThenBB = cfg->current_bb;
+        if (lastThenBB->exit_true == nullptr && lastThenBB->exit_false == nullptr)
+        {
             lastThenBB->exit_true = afterBB;
+        }
     }
 
     cfg->current_bb = afterBB;
@@ -348,12 +443,11 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 
     cfg->current_bb = bodyBB;
     visit(ctx->block());
-    if (bodyBB->exit_true == nullptr && bodyBB->exit_false == nullptr)
+    if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
     {
-        bodyBB->exit_true = condBB;
+        cfg->current_bb->exit_true = condBB;
     }
 
     cfg->current_bb = afterBB;
     return 0;
 }
-

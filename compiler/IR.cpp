@@ -189,9 +189,9 @@ void BasicBlock::gen_asm(ostream &o)
 
 /* ================= CFG ================= */
 
-CFG::CFG(DefFonction* ast_)
+CFG::CFG(const string& functionName_)
 {
-    ast = ast_;
+    functionName = functionName_;
     nextFreeSymbolIndex = -4;
     nextBBnumber = 0;
     current_bb = nullptr;
@@ -219,11 +219,8 @@ void CFG::gen_asm(ostream& o)
 
 void CFG::gen_asm_prologue(ostream& o)
 {
-#ifdef __APPLE__
-    o << ".globl _main\n_main:\n";
-#else
-    o << ".globl main\nmain:\n";
-#endif
+    o << ".globl " << functionName << "\n";
+    o << functionName << ":\n";
 
     o << "    pushq %rbp\n";
     o << "    movq %rsp, %rbp\n";
@@ -240,6 +237,15 @@ void CFG::gen_asm_prologue(ostream& o)
     if (frameSize > 0)
     {
         o << "    subq $" << frameSize << ", %rsp\n";
+    }
+
+    static const char *argRegs[] = {
+        "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
+    };
+
+    for (size_t i = 0; i < paramOrder.size() && i < 6; i++)
+    {
+        o << "    movl " << argRegs[i] << ", " << IR_reg_to_asm(paramOrder[i]) << "\n";
     }
 }
 
@@ -261,6 +267,16 @@ void CFG::add_to_symbol_table(string name, Type t)
     SymbolType[name] = t;
     SymbolIndex[name] = nextFreeSymbolIndex;
     nextFreeSymbolIndex -= 4;
+}
+
+void CFG::set_param_order(const vector<string>& params)
+{
+    paramOrder = params;
+}
+
+bool CFG::has_symbol(const string& name) const
+{
+    return SymbolIndex.count(name) != 0;
 }
 
 string CFG::create_new_tempvar(Type t)

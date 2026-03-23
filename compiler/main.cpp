@@ -8,7 +8,6 @@
 #include "generated/ifccParser.h"
 #include "generated/ifccBaseVisitor.h"
 
-#include "SymbolTableVisitor.h"   // <-- nouveau
 #include "IRVisitor.h"
 
 using namespace antlr4;
@@ -47,18 +46,13 @@ int main(int argn, const char **argv)
         exit(1);
     }
 
-    // --- Pass 1 : build symbol table & semantic checks ---
-    SymbolTableVisitor stv;
-    stv.visit(tree);
-    if (!stv.success)
+    IRVisitor irv;
+    irv.visit(tree);
+    if (!irv.success)
     {
         cerr << "error: semantic errors found, aborting compilation\n";
         exit(1);
     }
-
-    // --- Pass 2 : code generation (reuses the symbol table) ---
-    IRVisitor irv(stv.symbolTable, stv.numMaxTemps);
-    irv.visit(tree);
 
     return 0;
 }
