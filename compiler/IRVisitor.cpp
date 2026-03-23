@@ -9,6 +9,11 @@ using namespace std;
 
 IRVisitor::IRVisitor() = default;
 
+Type IRVisitor::declaredType(const string &name) const
+{
+    return cfg->get_var_type(name);
+}
+
 bool IRVisitor::isDeclaredInScope(const string &name) const
 {
     for (auto it = scopeStack.rbegin(); it != scopeStack.rend(); ++it)
@@ -26,6 +31,8 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
     // Predeclared external functions.
     functionArity["getchar"] = 0;
     functionArity["putchar"] = 1;
+    functionParamTypes["getchar"] = {};
+    functionParamTypes["putchar"] = {TYPE_INT};
 
     for (auto f : ctx->function_def())
     {
@@ -43,6 +50,17 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
             arity = static_cast<int>(f->param_list()->param().size());
         }
         functionArity[name] = arity;
+
+        vector<Type> paramTypes;
+        if (f->param_list() != nullptr)
+        {
+            for (auto p : f->param_list()->param())
+            {
+                bool isPtr = p->getText().find('*') != string::npos;
+                paramTypes.push_back(isPtr ? TYPE_PTR : TYPE_INT);
+            }
+        }
+        functionParamTypes[name] = paramTypes;
     }
 
     if (!functionArity.count("main"))
@@ -74,6 +92,7 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
         for (auto p : ctx->param_list()->param())
         {
             string pname = p->VAR()->getText();
+            Type ptype = (p->getText().find('*') != string::npos) ? TYPE_PTR : TYPE_INT;
             if (currentSymbols.count(pname))
             {
                 cerr << "error: parameter '" << pname << "' declared more than once in function '"
@@ -83,7 +102,7 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
             }
             currentSymbols.insert(pname);
             scopeStack.back().insert(pname);
-            cfg->add_to_symbol_table(pname, TYPE_INT);
+            cfg->add_to_symbol_table(pname, ptype);
             params.push_back(pname);
         }
     }
@@ -124,6 +143,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
     for (auto v : ctx->var_decl_list()->var_decl())
     {
         string lhs = v->VAR()->getText();
+        Type lhsType = (v->getText().rfind("*", 0) == 0) ? TYPE_PTR : TYPE_INT;
         if (!scopeStack.empty() && scopeStack.back().count(lhs))
         {
             cerr << "error: variable '" << lhs << "' declared more than once in function '"
@@ -137,12 +157,22 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
         {
             scopeStack.back().insert(lhs);
         }
-        cfg->add_to_symbol_table(lhs, TYPE_INT);
+        cfg->add_to_symbol_table(lhs, lhsType);
 
         if (v->expr() != nullptr)
         {
             string rhs = any_cast<string>(visit(v->expr()));
-            cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
+            Type rhsType = cfg->get_var_type(rhs);
+            if (lhsType != rhsType)
+            {
+                cerr << "error: type mismatch in initialization of '" << lhs
+                     << "' in function '" << currentFunction << "'\n";
+                success = false;
+            }
+            else
+            {
+                cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
+            }
         }
     }
     return 0;
@@ -159,8 +189,50 @@ antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
         return 0;
     }
 
+    Type lhsType = declaredType(lhs);
     string rhs = any_cast<string>(visit(ctx->expr()));
-    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
+    Type rhsType = cfg->get_var_type(rhs);
+    if (lhsType != rhsType)
+    {
+        cerr << "error: type mismatch in assignment to '" << lhs
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext *ctx)
+{
+    string ptrName = ctx->VAR()->getText();
+    if (!isDeclaredInScope(ptrName))
+    {
+        cerr << "error: variable '" << ptrName << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    if (declaredType(ptrName) != TYPE_PTR)
+    {
+        cerr << "error: cannot dereference non-pointer '" << ptrName
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    if (cfg->get_var_type(rhs) != TYPE_INT)
+    {
+        cerr << "error: cannot store non-int through pointer '" << ptrName
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    cfg->current_bb->add_IRInstr(IRInstr::wmem, TYPE_INT, {ptrName, rhs});
     return 0;
 }
 
@@ -170,6 +242,11 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
     if (ctx->expr() != nullptr)
     {
         retVal = any_cast<string>(visit(ctx->expr()));
+        if (cfg->get_var_type(retVal) != TYPE_INT)
+        {
+            cerr << "error: function '" << currentFunction << "' returns int, got pointer\n";
+            success = false;
+        }
     }
     else
     {
@@ -320,6 +397,24 @@ antlrcpp::Any IRVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
     return dst;
 }
 
+antlrcpp::Any IRVisitor::visitAddrOfVar(ifccParser::AddrOfVarContext *ctx)
+{
+    string name = ctx->VAR()->getText();
+    if (!isDeclaredInScope(name))
+    {
+        cerr << "error: variable '" << name << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        string zero = cfg->create_new_tempvar(TYPE_PTR);
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+        return zero;
+    }
+
+    string dst = cfg->create_new_tempvar(TYPE_PTR);
+    cfg->current_bb->add_IRInstr(IRInstr::addrof, TYPE_PTR, {dst, name});
+    return dst;
+}
+
 antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
     string name = ctx->VAR()->getText();
@@ -333,6 +428,23 @@ antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
         return zero;
     }
     return name;
+}
+
+antlrcpp::Any IRVisitor::visitDerefExpr(ifccParser::DerefExprContext *ctx)
+{
+    string ptr = any_cast<string>(visit(ctx->expr()));
+    if (cfg->get_var_type(ptr) != TYPE_PTR)
+    {
+        cerr << "error: cannot dereference non-pointer in function '" << currentFunction << "'\n";
+        success = false;
+        string zero = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+        return zero;
+    }
+
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::rmem, TYPE_INT, {dst, ptr});
+    return dst;
 }
 
 antlrcpp::Any IRVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
@@ -370,9 +482,23 @@ antlrcpp::Any IRVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
 
     if (ctx->arg_list() != nullptr)
     {
+        int i = 0;
         for (auto e : ctx->arg_list()->expr())
         {
-            params.push_back(any_cast<string>(visit(e)));
+            string arg = any_cast<string>(visit(e));
+            params.push_back(arg);
+            if (functionParamTypes.count(fname) && i < static_cast<int>(functionParamTypes[fname].size()))
+            {
+                Type expected = functionParamTypes[fname][i];
+                Type got = cfg->get_var_type(arg);
+                if (expected != got)
+                {
+                    cerr << "error: type mismatch for argument " << (i + 1)
+                         << " in call to '" << fname << "'\n";
+                    success = false;
+                }
+            }
+            i++;
         }
     }
 

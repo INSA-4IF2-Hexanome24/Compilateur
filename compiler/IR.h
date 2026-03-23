@@ -13,7 +13,8 @@ using std::string;
 using std::vector;
 
 enum Type {
-    TYPE_INT
+    TYPE_INT,
+    TYPE_PTR
 };
 
 class BasicBlock;
@@ -36,6 +37,7 @@ class IRInstr {
 		band,
 		bxor,
 		bor,
+		addrof,
 		rmem,
 		wmem,
 		call, 

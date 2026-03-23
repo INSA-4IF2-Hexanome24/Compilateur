@@ -13,6 +13,7 @@
 class IRVisitor : public ifccBaseVisitor {
 public:
     std::map<std::string, int> functionArity;
+    std::map<std::string, std::vector<Type>> functionParamTypes;
     std::set<std::string> currentSymbols;
     std::vector<std::set<std::string>> scopeStack;
     std::string currentFunction;
@@ -31,6 +32,8 @@ public:
         ifccParser::Decl_stmtContext *ctx) override;
     virtual antlrcpp::Any visitAssign_stmt(
         ifccParser::Assign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPtr_assign_stmt(
+        ifccParser::Ptr_assign_stmtContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(
         ifccParser::Return_stmtContext *ctx) override;
 
@@ -48,8 +51,12 @@ public:
     virtual antlrcpp::Any visitParens(ifccParser::ParensContext *ctx) override;
     virtual antlrcpp::Any visitConstExpr(
         ifccParser::ConstExprContext *ctx) override;
+    virtual antlrcpp::Any visitAddrOfVar(
+        ifccParser::AddrOfVarContext *ctx) override;
     virtual antlrcpp::Any visitVarExpr(
         ifccParser::VarExprContext *ctx) override;
+    virtual antlrcpp::Any visitDerefExpr(
+        ifccParser::DerefExprContext *ctx) override;
     virtual antlrcpp::Any visitFuncCall(
         ifccParser::FuncCallContext *ctx) override;
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
@@ -57,5 +64,6 @@ public:
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
 
 private:
+    Type declaredType(const std::string &name) const;
     bool isDeclaredInScope(const std::string &name) const;
 };
