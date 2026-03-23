@@ -9,8 +9,24 @@ using namespace std;
 
 IRVisitor::IRVisitor() = default;
 
+bool IRVisitor::isDeclaredInScope(const string &name) const
+{
+    for (auto it = scopeStack.rbegin(); it != scopeStack.rend(); ++it)
+    {
+        if (it->count(name))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
+    // Predeclared external functions.
+    functionArity["getchar"] = 0;
+    functionArity["putchar"] = 1;
+
     for (auto f : ctx->function_def())
     {
         string name = f->VAR()->getText();
@@ -49,6 +65,8 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
     currentFunction = ctx->VAR()->getText();
     cfg = new CFG(currentFunction);
     currentSymbols.clear();
+    scopeStack.clear();
+    scopeStack.push_back({});
 
     vector<string> params;
     if (ctx->param_list() != nullptr)
@@ -64,6 +82,7 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
                 continue;
             }
             currentSymbols.insert(pname);
+            scopeStack.back().insert(pname);
             cfg->add_to_symbol_table(pname, TYPE_INT);
             params.push_back(pname);
         }
@@ -105,7 +124,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
     for (auto v : ctx->var_decl_list()->var_decl())
     {
         string lhs = v->VAR()->getText();
-        if (currentSymbols.count(lhs))
+        if (!scopeStack.empty() && scopeStack.back().count(lhs))
         {
             cerr << "error: variable '" << lhs << "' declared more than once in function '"
                  << currentFunction << "'\n";
@@ -114,6 +133,10 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
         }
 
         currentSymbols.insert(lhs);
+        if (!scopeStack.empty())
+        {
+            scopeStack.back().insert(lhs);
+        }
         cfg->add_to_symbol_table(lhs, TYPE_INT);
 
         if (v->expr() != nullptr)
@@ -128,7 +151,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
     string lhs = ctx->VAR()->getText();
-    if (!cfg->has_symbol(lhs))
+    if (!isDeclaredInScope(lhs))
     {
         cerr << "error: variable '" << lhs << "' used before declaration in function '"
              << currentFunction << "'\n";
@@ -143,7 +166,16 @@ antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    string retVal = any_cast<string>(visit(ctx->expr()));
+    string retVal;
+    if (ctx->expr() != nullptr)
+    {
+        retVal = any_cast<string>(visit(ctx->expr()));
+    }
+    else
+    {
+        retVal = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "0"});
+    }
     cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
     cfg->current_bb->exit_true = returnBB;
 
@@ -291,7 +323,7 @@ antlrcpp::Any IRVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
     string name = ctx->VAR()->getText();
-    if (!cfg->has_symbol(name))
+    if (!isDeclaredInScope(name))
     {
         cerr << "error: variable '" << name << "' used before declaration in function '"
              << currentFunction << "'\n";
@@ -403,10 +435,12 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext *ctx)
 {
+    scopeStack.push_back({});
     for (auto s : ctx->stmt())
     {
         visit(s);
     }
+    scopeStack.pop_back();
     return 0;
 }
 
