@@ -204,7 +204,7 @@ void CFG::add_bb(BasicBlock* bb)
 
 string CFG::new_BB_name()
 {
-    return "BB" + to_string(nextBBnumber++);
+    return functionName + "_BB" + to_string(nextBBnumber++);
 }
 
 void CFG::gen_asm(ostream& o)

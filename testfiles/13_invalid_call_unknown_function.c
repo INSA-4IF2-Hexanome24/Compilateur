@@ -1,0 +1,3 @@
+int main() {
+    return does_not_exist(1, 2);
+}
