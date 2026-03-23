@@ -25,7 +25,14 @@ void IRInstr::gen_asm(ostream &o)
             string dest = params[0];
             string val  = params[1];
 
-            o << "    movl $" << val << ", " << cfg->IR_reg_to_asm(dest) << "\n";
+            if (t == TYPE_PTR)
+            {
+                o << "    movq $" << val << ", " << cfg->IR_reg_to_asm(dest) << "\n";
+            }
+            else
+            {
+                o << "    movl $" << val << ", " << cfg->IR_reg_to_asm(dest) << "\n";
+            }
             break;
         }
 
@@ -35,8 +42,48 @@ void IRInstr::gen_asm(ostream &o)
             string src  = params[0];
             string dest = params[1];
 
-            o << "    movl " << cfg->IR_reg_to_asm(src) << ", %eax\n";
-            o << "    movl %eax, " << cfg->IR_reg_to_asm(dest) << "\n";
+            if (t == TYPE_PTR)
+            {
+                o << "    movq " << cfg->IR_reg_to_asm(src) << ", %rax\n";
+                o << "    movq %rax, " << cfg->IR_reg_to_asm(dest) << "\n";
+            }
+            else
+            {
+                o << "    movl " << cfg->IR_reg_to_asm(src) << ", %eax\n";
+                o << "    movl %eax, " << cfg->IR_reg_to_asm(dest) << "\n";
+            }
+            break;
+        }
+
+        case addrof:
+        {
+            // params: dest_ptr, source_var
+            string dest = params[0];
+            string src  = params[1];
+            o << "    leaq " << cfg->IR_reg_to_asm(src) << ", %rax\n";
+            o << "    movq %rax, " << cfg->IR_reg_to_asm(dest) << "\n";
+            break;
+        }
+
+        case rmem:
+        {
+            // params: dest_int, src_ptr
+            string dest = params[0];
+            string ptr  = params[1];
+            o << "    movq " << cfg->IR_reg_to_asm(ptr) << ", %rax\n";
+            o << "    movl (%rax), %ecx\n";
+            o << "    movl %ecx, " << cfg->IR_reg_to_asm(dest) << "\n";
+            break;
+        }
+
+        case wmem:
+        {
+            // params: dst_ptr, src_int
+            string ptr = params[0];
+            string src = params[1];
+            o << "    movq " << cfg->IR_reg_to_asm(ptr) << ", %rax\n";
+            o << "    movl " << cfg->IR_reg_to_asm(src) << ", %ecx\n";
+            o << "    movl %ecx, (%rax)\n";
             break;
         }
 
@@ -118,14 +165,25 @@ void IRInstr::gen_asm(ostream &o)
             // params: function_name, dest, arg1, arg2, ...
             string fname = params[0];
             string dest  = params[1];
-            static const char *argRegs[] = {
+            static const char *argRegsInt[] = {
                 "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
+            };
+            static const char *argRegsPtr[] = {
+                "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"
             };
 
             int argCount = static_cast<int>(params.size()) - 2;
             for (int i = 0; i < argCount && i < 6; i++)
             {
-                o << "    movl " << cfg->IR_reg_to_asm(params[i + 2]) << ", " << argRegs[i] << "\n";
+                Type argType = cfg->get_var_type(params[i + 2]);
+                if (argType == TYPE_PTR)
+                {
+                    o << "    movq " << cfg->IR_reg_to_asm(params[i + 2]) << ", " << argRegsPtr[i] << "\n";
+                }
+                else
+                {
+                    o << "    movl " << cfg->IR_reg_to_asm(params[i + 2]) << ", " << argRegsInt[i] << "\n";
+                }
             }
 
             o << "    call " << fname << "\n";
@@ -266,7 +324,14 @@ void CFG::add_to_symbol_table(string name, Type t)
 {
     SymbolType[name] = t;
     SymbolIndex[name] = nextFreeSymbolIndex;
-    nextFreeSymbolIndex -= 4;
+    if (t == TYPE_PTR)
+    {
+        nextFreeSymbolIndex -= 8;
+    }
+    else
+    {
+        nextFreeSymbolIndex -= 4;
+    }
 }
 
 void CFG::set_param_order(const vector<string>& params)

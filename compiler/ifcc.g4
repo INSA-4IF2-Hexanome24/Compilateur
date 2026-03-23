@@ -17,7 +17,7 @@ param_list
   ;
 
 param
-  : 'int' VAR
+  : 'int' '*'? VAR
   ;
 
 // ----------------------
@@ -27,6 +27,7 @@ param
 stmt
   : decl_stmt
   | assign_stmt
+  | ptr_assign_stmt
   | if_stmt
   | expr_stmt
   | block
@@ -51,12 +52,16 @@ var_decl_list
   ;
 
 var_decl
-  : VAR
-  | VAR '=' expr
+  : '*'? VAR
+  | '*'? VAR '=' expr
   ;
 
 assign_stmt
   : VAR '=' expr ';'
+  ;
+
+ptr_assign_stmt
+  : '*' VAR '=' expr ';'
   ;
 
 return_stmt
@@ -89,6 +94,7 @@ while_stmt
 expr
   : '-' expr                           # unaryMinus
   | '!' expr                           # notExpr
+  | '*' expr                           # derefExpr
   | expr  OP=('*'|'/'|'%') expr        # Multdivmod
   | expr  OP=('+'|'-') expr            # Plusminus
   | expr  OP=('<'|'>') expr            # Ltgt 
@@ -98,6 +104,7 @@ expr
   | expr '|' expr                      # bor 
   | '(' expr ')'                       # parens
   | CONST                              # constExpr
+  | '&' VAR                            # addrOfVar
   | VAR                                # varExpr
   | VAR '(' arg_list? ')'              # funcCall
   ;
