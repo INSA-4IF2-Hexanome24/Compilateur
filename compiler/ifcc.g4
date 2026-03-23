@@ -5,7 +5,19 @@ axiom
   ;
 
 prog
-  : 'int' 'main' '(' ')' '{' stmt* '}'
+  : function_def+
+  ;
+
+function_def
+  : 'int' VAR '(' param_list? ')' block
+  ;
+
+param_list
+  : param (',' param)*
+  ;
+
+param
+  : 'int' VAR
   ;
 
 // ----------------------
