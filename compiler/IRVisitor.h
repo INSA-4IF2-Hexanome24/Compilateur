@@ -24,8 +24,6 @@ public:
         ifccParser::Expr_stmtContext *ctx) override;
     virtual antlrcpp::Any visitDecl_stmt(
         ifccParser::Decl_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitAssign_stmt(
-        ifccParser::Assign_stmtContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(
         ifccParser::Return_stmtContext *ctx) override;
 
@@ -50,4 +48,9 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
+
+    virtual antlrcpp::Any visitSimpleAssign(ifccParser::SimpleAssignContext *ctx) override;
+    virtual antlrcpp::Any visitCompoundAssign(ifccParser::CompoundAssignContext *ctx) override;
+    virtual antlrcpp::Any visitPreIncDec(ifccParser::PreIncDecContext *ctx) override;
+    virtual antlrcpp::Any visitPostIncDec(ifccParser::PostIncDecContext *ctx) override;
 };

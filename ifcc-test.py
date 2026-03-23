@@ -80,7 +80,7 @@ argparser.add_argument('input',metavar='PATH',nargs='+',help='For each path give
                        +' if it\'s a directory, use all *.c files under this subtree')
 
 argparser.add_argument('-v','--verbose',action="count",default=0,
-                       help='increase verbosity level. You can use this option multiple times.')
+                       help='increase verbcd osity level. You can use this option multiple times.')
 argparser.add_argument('-d','--debug',action="count",default=0,
                        help='increase quantity of debugging messages (only useful to debug the test script itself)')
 argparser.add_argument('-S',action = "store_true", help='single-file mode: compile from C to assembly, but do not assemble')

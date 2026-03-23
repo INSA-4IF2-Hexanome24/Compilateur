@@ -132,8 +132,8 @@ antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *c
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitAssign_stmt(
-    ifccParser::Assign_stmtContext *ctx)
+antlrcpp::Any SymbolTableVisitor::visitSimpleAssign(
+    ifccParser::SimpleAssignContext *ctx)
 {
     std::string name = ctx->VAR()->getText();
 

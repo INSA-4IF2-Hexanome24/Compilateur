@@ -79,14 +79,6 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
     return 0;
 }
 
-antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
-{
-    string rhs = any_cast<string>(visit(ctx->expr()));
-    string lhs = ctx->VAR()->getText();
-    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
-    return 0;
-}
-
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
     string retVal = any_cast<string>(visit(ctx->expr()));
@@ -220,6 +212,76 @@ antlrcpp::Any IRVisitor::visitUnaryMinus(ifccParser::UnaryMinusContext *ctx)
     cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
     cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {zero, val, dst});
     return dst;
+}
+
+antlrcpp::Any IRVisitor::visitSimpleAssign(ifccParser::SimpleAssignContext *ctx)
+{
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string lhs = ctx->VAR()->getText();
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
+    return 0;
+}
+
+
+antlrcpp::Any IRVisitor::visitCompoundAssign(ifccParser::CompoundAssignContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string op = ctx->OP->getText();
+    
+   
+    char opChar = op[0];  
+    
+    if (opChar == '+') 
+        cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, rhs, dst});
+    else if (opChar == '-')
+        cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, rhs, dst});
+    else if (opChar == '*')
+        cfg->current_bb->add_IRInstr(IRInstr::mul, TYPE_INT, {var, rhs, dst});
+    else if (opChar == '/')
+        cfg->current_bb->add_IRInstr(IRInstr::div, TYPE_INT, {var, rhs, dst});
+    else if (opChar == '%')
+        cfg->current_bb->add_IRInstr(IRInstr::mod, TYPE_INT, {var, rhs, dst});
+    
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {dst, var});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitPreIncDec(ifccParser::PreIncDecContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    string op = ctx->OP->getText();
+    string un = cfg->create_new_tempvar(TYPE_INT);
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {un, "1"});
+    
+    if (op == "++")
+        cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, un, dst});
+    else if (op == "--")
+        cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, un, dst});
+    
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {dst, var});
+    return var;  
+}
+
+antlrcpp::Any IRVisitor::visitPostIncDec(ifccParser::PostIncDecContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    string op = ctx->OP->getText();
+    string un = cfg->create_new_tempvar(TYPE_INT);
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {un, "1"});
+    
+    if (op == "++")
+        cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, un, dst});
+    else if (op == "--")
+        cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, un, dst});
+    
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {dst, var});
+    return var;  
 }
 
 antlrcpp::Any IRVisitor::visitParens(ifccParser::ParensContext *ctx)

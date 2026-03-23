@@ -44,7 +44,10 @@ var_decl
   ;
 
 assign_stmt
-  : VAR '=' expr ';'
+  : VAR '=' expr ';'                              # simpleAssign
+  | VAR OP=('+='|'-='|'*='|'/='|'%=') expr ';'   # compoundAssign
+  | OP=('++'|'--') VAR ';'                        # preIncDec
+  | VAR OP=('++'|'--') ';'                        # postIncDec
   ;
 
 return_stmt
