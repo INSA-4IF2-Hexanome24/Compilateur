@@ -9,6 +9,16 @@ using namespace std;
 
 IRVisitor::IRVisitor() = default;
 
+string IRVisitor::currentPrefix()
+{
+    return "";
+}
+
+string IRVisitor::resolveVar(string var)
+{
+    return var;
+}
+
 Type IRVisitor::declaredType(const string &name) const
 {
     return cfg->get_var_type(name);
@@ -181,6 +191,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 {
     string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
     if (!isDeclaredInScope(lhs))
     {
         cerr << "error: variable '" << lhs << "' used before declaration in function '"
@@ -418,6 +429,7 @@ antlrcpp::Any IRVisitor::visitAddrOfVar(ifccParser::AddrOfVarContext *ctx)
 antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
     string name = ctx->VAR()->getText();
+    name = resolveVar(name);
     if (!isDeclaredInScope(name))
     {
         cerr << "error: variable '" << name << "' used before declaration in function '"

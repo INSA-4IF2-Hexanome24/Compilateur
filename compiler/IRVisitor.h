@@ -22,6 +22,8 @@ public:
     bool success = true;
 
     IRVisitor();
+    std::string currentPrefix();
+    std::string resolveVar(std::string var);
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitFunction_def(
