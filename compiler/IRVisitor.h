@@ -19,6 +19,18 @@ public:
     IRVisitor();
     IRVisitor(const std::map<std::string, int> &table, int numMaxTemps);
 
+    std::vector<BasicBlock *> breakTargets;
+    std::vector<BasicBlock *> continueTargets;
+
+    virtual antlrcpp::Any visitBreakStmt(
+        ifccParser::BreakStmtContext *ctx) override;
+
+    virtual antlrcpp::Any visitContinueStmt(
+        ifccParser::ContinueStmtContext *ctx) override;
+
+    virtual antlrcpp::Any visitSwitchStmt(
+        ifccParser::SwitchStmtContext *ctx) override;
+
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitExpr_stmt(
         ifccParser::Expr_stmtContext *ctx) override;

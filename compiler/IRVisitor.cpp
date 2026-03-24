@@ -315,10 +315,116 @@ antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext *ctx)
     return 0;
 }
 
+antlrcpp::Any IRVisitor::visitBreakStmt(ifccParser::BreakStmtContext *ctx)
+{
+    if (!breakTargets.empty())
+    {
+        cfg->current_bb->exit_true = breakTargets.back();
+    }
+    // dead block after break
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitContinueStmt(ifccParser::ContinueStmtContext *ctx)
+{
+    if (!continueTargets.empty())
+    {
+        cfg->current_bb->exit_true = continueTargets.back();
+    }
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitSwitchStmt(ifccParser::SwitchStmtContext *ctx)
+{
+    string switchVal = any_cast<string>(visit(ctx->expr()));
+
+    auto *sw = ctx->switch_block();
+    int  n   = static_cast<int>(sw->CONST().size());
+
+    // afterBB is where break and fall-through go
+    BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(afterBB);
+    breakTargets.push_back(afterBB);
+
+    // Build one BB per case body + one for default (or afterBB)
+    vector<BasicBlock *> caseBBs;
+    for (int i = 0; i < n; i++)
+    {
+        BasicBlock *bb = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(bb);
+        caseBBs.push_back(bb);
+    }
+
+    BasicBlock *defaultBB = afterBB;
+    if (sw->DEFAULT() != nullptr)
+    {
+        defaultBB = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(defaultBB);
+    }
+
+    // Emit comparison chain: for each case emit cmp + conditional jump
+    for (int i = 0; i < n; i++)
+    {
+        string caseVal = sw->CONST(i)->getText();
+        string cst     = cfg->create_new_tempvar(TYPE_INT);
+        string cmp     = cfg->create_new_tempvar(TYPE_INT);
+
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {cst, caseVal});
+        cfg->current_bb->add_IRInstr(IRInstr::cmp_eq,  TYPE_INT, {switchVal, cst, cmp});
+
+        cfg->current_bb->test_var_name = cmp;
+        cfg->current_bb->exit_true     = caseBBs[i];
+
+        // Next comparison goes into a fresh BB
+        BasicBlock *nextCmp = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(nextCmp);
+        cfg->current_bb->exit_false = nextCmp;
+        cfg->current_bb             = nextCmp;
+    }
+
+    // Remaining current_bb falls through to default (or after)
+    cfg->current_bb->exit_true = defaultBB;
+
+    // Emit each case body; fall-through links to the next case body
+    for (int i = 0; i < n; i++)
+    {
+        cfg->current_bb = caseBBs[i];
+        visit(sw->block(i));
+        // fall-through to next case body (or defaultBB if last)
+        if (cfg->current_bb->exit_true == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
+        {
+            BasicBlock *next = (i + 1 < n) ? caseBBs[i + 1] : defaultBB;
+            cfg->current_bb->exit_true = next;
+        }
+    }
+
+    // Emit default body if present
+    if (sw->DEFAULT() != nullptr)
+    {
+        cfg->current_bb = defaultBB;
+        visit(sw->block(n)); // default block is after all case blocks
+        if (cfg->current_bb->exit_true == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
+        {
+            cfg->current_bb->exit_true = afterBB;
+        }
+    }
+
+    breakTargets.pop_back();
+    cfg->current_bb = afterBB;
+    return 0;
+}
 antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {
-    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *condBB  = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *bodyBB  = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
 
     cfg->add_bb(condBB);
@@ -330,8 +436,11 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
     cfg->current_bb = condBB;
     string cond = any_cast<string>(visit(ctx->expr()));
     condBB->test_var_name = cond;
-    condBB->exit_true = bodyBB;
+    condBB->exit_true  = bodyBB;
     condBB->exit_false = afterBB;
+
+    breakTargets.push_back(afterBB);    // <-- added for switch case
+    continueTargets.push_back(condBB);  // <-- added
 
     cfg->current_bb = bodyBB;
     visit(ctx->block());
@@ -340,7 +449,9 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
         bodyBB->exit_true = condBB;
     }
 
+    breakTargets.pop_back();    // <-- added
+    continueTargets.pop_back(); // <-- added
+
     cfg->current_bb = afterBB;
     return 0;
 }
-

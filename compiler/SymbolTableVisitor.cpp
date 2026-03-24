@@ -223,6 +223,18 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitSwitchStmt(
+    ifccParser::SwitchStmtContext *ctx)
+{
+    visit(ctx->expr());
+
+    auto *sw = ctx->switch_block();
+    for (auto b : sw->block())
+    {
+        visit(b);
+    }
+    return 0;
+}
 
 
     std::string SymbolTableVisitor::currentPrefix()

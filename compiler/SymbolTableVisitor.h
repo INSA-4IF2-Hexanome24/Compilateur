@@ -22,7 +22,9 @@ public:
     int numMaxTemps = 0;
     int nextIndex = -4;
     bool success = true;
-
+    
+    virtual antlrcpp::Any visitSwitchStmt(
+    ifccParser::SwitchStmtContext *ctx) override;
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitExpr_stmt(
         ifccParser::Expr_stmtContext *ctx) override;
