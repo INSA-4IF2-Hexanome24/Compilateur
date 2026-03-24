@@ -11,12 +11,17 @@ IRVisitor::IRVisitor() = default;
 
 Type IRVisitor::declaredType(const string &name) const
 {
-    return cfg->get_var_type(name);
-IRVisitor::IRVisitor() = default;
+    return cfg->get_var_type(name);}
+
 
 string IRVisitor::currentPrefix()
 {
     return "";
+}
+
+string IRVisitor::resolveVar(string var)
+{
+    return var;
 }
 
 bool IRVisitor::isDeclaredInScope(const string &name) const
@@ -222,6 +227,150 @@ antlrcpp::Any IRVisitor::visitAssignSimple_stmt(ifccParser::AssignSimple_stmtCon
 
     cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
     return 0;
+}
+
+antlrcpp::Any IRVisitor::visitAddAssign_stmt(ifccParser::AddAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {lhs, rhs, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitMinusAssign_stmt(ifccParser::MinusAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {lhs, rhs, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitMultAssign_stmt(ifccParser::MultAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::mul, TYPE_INT, {lhs, rhs, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitDivAssign_stmt(ifccParser::DivAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::div, TYPE_INT, {lhs, rhs, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitPreAdd_stmt(ifccParser::PreAdd_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    var = resolveVar(var);
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, one, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, var});
+    return var;
+}
+
+antlrcpp::Any IRVisitor::visitPreMinus_stmt(ifccParser::PreMinus_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    var = resolveVar(var);
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, one, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, var});
+    return var;
+}
+
+antlrcpp::Any IRVisitor::visitPostAdd_stmt(ifccParser::PostAdd_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    var = resolveVar(var);
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    string old_val = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {var, old_val});
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, one, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, var});
+    return old_val;
+}
+
+antlrcpp::Any IRVisitor::visitPostMinus_stmt(ifccParser::PostMinus_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    var = resolveVar(var);
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    string old_val = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {var, old_val});
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, one, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, var});
+    return old_val;
 }
 
 antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext *ctx)

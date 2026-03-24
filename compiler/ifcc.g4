@@ -78,10 +78,6 @@ ptr_assign_stmt
   : '*' VAR '=' expr ';'
   ;
 
-ptr_assign_stmt
-  : '*' VAR '=' expr ';'
-  ;
-
 return_stmt
   : 'return' expr? ';'
   ;
