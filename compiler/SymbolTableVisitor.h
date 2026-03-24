@@ -63,4 +63,6 @@ public:
         ifccParser::postAdd_stmtContext *ctx) override;
     virtual antlrcpp::Any visitpostMinus_stmt(
         ifccParser::postMinus_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitAndCond(ifccParser::AndCondContext *ctx) override;
+    virtual antlrcpp::Any visitOrCond(ifccParser::OrCondContext *ctx) override;
 };

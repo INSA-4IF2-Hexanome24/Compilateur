@@ -53,6 +53,9 @@ public:
     virtual antlrcpp::Any visitReturn_stmt(
         ifccParser::Return_stmtContext *ctx) override;
 
+    virtual antlrcpp::Any visitAndCond(ifccParser::AndCondContext *ctx) override;
+    virtual antlrcpp::Any visitOrCond(ifccParser::OrCondContext *ctx) override;
+
     virtual antlrcpp::Any visitMultdivmod(ifccParser::MultdivmodContext *ctx) override;
     virtual antlrcpp::Any visitPlusminus(ifccParser::PlusminusContext *ctx) override;
     virtual antlrcpp::Any visitLtgt(ifccParser::LtgtContext *ctx) override;

@@ -576,6 +576,89 @@ antlrcpp::Any IRVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
     return dst;
 }
 
+
+antlrcpp::Any IRVisitor::visitAndCond(ifccParser::AndCondContext *ctx)
+{
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    
+    // Crear bloques
+    BasicBlock *evalRhs_BB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *after_BB = new BasicBlock(cfg, cfg->new_BB_name());
+    
+    cfg->add_bb(evalRhs_BB);
+    cfg->add_bb(after_BB);
+    
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string zero = cfg->create_new_tempvar(TYPE_INT);
+    
+    // Asignar 0 al resultado por defecto (para cuando lhs sea false)
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {zero, dst});
+    
+    // Si lhs != 0, ir a evaluar rhs; si no, ir al final
+    cfg->current_bb->test_var_name = lhs;
+    cfg->current_bb->exit_true = evalRhs_BB;
+    cfg->current_bb->exit_false = after_BB;
+    
+    // Bloque de evaluación de rhs
+    cfg->current_bb = evalRhs_BB;
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
+    
+    // Convertir rhs a booleano (0 o 1)
+    string rhs_bool = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::cmp_ne, TYPE_INT, {rhs, zero, rhs_bool});
+    
+    // dst = rhs_bool
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs_bool, dst});
+    cfg->current_bb->exit_true = after_BB;
+    
+    // Bloque after
+    cfg->current_bb = after_BB;
+    return dst;
+}
+
+antlrcpp::Any IRVisitor::visitOrCond(ifccParser::OrCondContext *ctx)
+{
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    
+    // Crear bloques
+    BasicBlock *evalRhs_BB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *after_BB = new BasicBlock(cfg, cfg->new_BB_name());
+    
+    cfg->add_bb(evalRhs_BB);
+    cfg->add_bb(after_BB);
+    
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string zero = cfg->create_new_tempvar(TYPE_INT);
+    
+    // Asignar 1 al resultado por defecto (para cuando lhs sea true)
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {one, dst});
+    
+    // Si lhs == 0, ir a evaluar rhs; si no, ir al final (lhs es true, resultado es 1)
+    cfg->current_bb->test_var_name = lhs;
+    cfg->current_bb->exit_true = after_BB;
+    cfg->current_bb->exit_false = evalRhs_BB;
+    
+    // Bloque de evaluación de rhs
+    cfg->current_bb = evalRhs_BB;
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
+    
+    // Convertir rhs a booleano (0 o 1)
+    string rhs_bool = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+    cfg->current_bb->add_IRInstr(IRInstr::cmp_ne, TYPE_INT, {rhs, zero, rhs_bool});
+    
+    // dst = rhs_bool
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs_bool, dst});
+    cfg->current_bb->exit_true = after_BB;
+    
+    // Bloque after
+    cfg->current_bb = after_BB;
+    return dst;
+}
+
 antlrcpp::Any IRVisitor::visitBand(ifccParser::BandContext *ctx)
 {
     string lhs = any_cast<string>(visit(ctx->expr(0)));

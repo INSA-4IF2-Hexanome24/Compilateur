@@ -110,6 +110,8 @@ expr
   | expr '&' expr                      # band
   | expr '^' expr                      # bxor
   | expr '|' expr                      # bor 
+  | expr '&&' expr                     # AndCond
+  | expr '||' expr                     # OrCond
   | '(' expr ')'                       # parens
   | CONST                              # constExpr
   | '&' VAR                            # addrOfVar
