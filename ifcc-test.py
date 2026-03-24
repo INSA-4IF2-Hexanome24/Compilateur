@@ -80,7 +80,7 @@ argparser.add_argument('input',metavar='PATH',nargs='+',help='For each path give
                        +' if it\'s a directory, use all *.c files under this subtree')
 
 argparser.add_argument('-v','--verbose',action="count",default=0,
-                       help='increase verbosity level. You can use this option multiple times.')
+                       help='increase verbcd osity level. You can use this option multiple times.')
 argparser.add_argument('-d','--debug',action="count",default=0,
                        help='increase quantity of debugging messages (only useful to debug the test script itself)')
 argparser.add_argument('-S',action = "store_true", help='single-file mode: compile from C to assembly, but do not assemble')
@@ -274,7 +274,7 @@ all_ok=True
 for jobname in jobs:
     os.chdir(f'{pld_base_dir}/ifcc-test-output')
 
-    print('TEST-CASE: '+jobname)
+    print('\033[1;94mTEST-CASE:\033[0m '+jobname)
     os.chdir(jobname)
     
     ## Reference compiler = GCC
@@ -292,16 +292,16 @@ for jobname in jobs:
     
     if gccstatus != 0 and ifccstatus != 0:
         ## ifcc correctly rejects invalid program -> test-case ok
-        print("TEST OK")
+        print("TEST \033[92mOK\033[0m")
         continue
     elif gccstatus != 0 and ifccstatus == 0:
         ## ifcc wrongly accepts invalid program -> error
-        print("TEST FAIL (your compiler accepts an invalid program)")
+        print("TEST \033[91mFAIL\033[0m (your compiler accepts an invalid program)")
         all_ok=False
         continue
     elif gccstatus == 0 and ifccstatus != 0:
         ## ifcc wrongly rejects valid program -> error
-        print("TEST FAIL (your compiler rejects a valid program)")
+        print("TEST \033[91mFAIL\033[0m (your compiler rejects a valid program)")
         all_ok=False
         if args.verbose:
             dumpfile("asm-ifcc.s")       # stdout of ifcc
@@ -311,7 +311,7 @@ for jobname in jobs:
         ## ifcc accepts to compile valid program -> let's link it
         ldstatus=run_command("gcc -o exe-ifcc asm-ifcc.s", "ifcc-link.txt")
         if ldstatus:
-            print("TEST FAIL (your compiler produces incorrect assembly)")
+            print("TEST \033[91mFAIL\033[0m (your compiler produces incorrect assembly)")
             all_ok=False
             if args.verbose:
                 dumpfile("asm-ifcc.s")
@@ -323,7 +323,7 @@ for jobname in jobs:
         
     run_program("./exe-ifcc", "ifcc-execute.txt")
     if open("gcc-execute.txt").read() != open("ifcc-execute.txt").read() :
-        print("TEST FAIL (different results at execution)")
+        print("TEST \033[91mFAIL\033[0m (different results at execution)")
         all_ok=False
 
         if args.verbose:
@@ -334,7 +334,7 @@ for jobname in jobs:
         continue
 
     ## last but not least
-    print("TEST OK")
+    print("TEST \033[92mOK\033[0m")
 
 if not (all_ok or args.verbose):
     print("Some test-cases failed. Run ifcc-test.py with option '--verbose' for more detailed feedback.")
