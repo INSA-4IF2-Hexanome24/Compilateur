@@ -22,6 +22,8 @@ public:
     bool success = true;
 
     IRVisitor();
+    std::string currentPrefix();
+    std::string resolveVar(std::string var);
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitFunction_def(
@@ -48,6 +50,8 @@ public:
         ifccParser::PostAdd_stmtContext *ctx) override;
     virtual antlrcpp::Any visitPostMinus_stmt(
         ifccParser::PostMinus_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPtr_assign_stmt(
+        ifccParser::Ptr_assign_stmtContext *ctx) override;
     virtual antlrcpp::Any visitPtr_assign_stmt(
         ifccParser::Ptr_assign_stmtContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(
@@ -81,8 +85,4 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
-
-private:
-    Type declaredType(const std::string &name) const;
-    bool isDeclaredInScope(const std::string &name) const;
 };

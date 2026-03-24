@@ -9,8 +9,14 @@ prog
   ;
 
 function_def
-  : 'int' VAR '(' param_list? ')' block
+  : type_spec VAR '(' param_list? ')' block
   ;
+
+type_spec
+  : 'int'
+  | 'void'
+  ;
+
 
 param_list
   : param (',' param)*
@@ -66,6 +72,10 @@ assign_stmt
   | '++' VAR ';' # preAdd_stmt
   | VAR '--' ';' # postMinus_stmt
   | VAR '++' ';' # postAdd_stmt
+  ;
+
+ptr_assign_stmt
+  : '*' VAR '=' expr ';'
   ;
 
 ptr_assign_stmt

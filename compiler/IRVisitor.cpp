@@ -12,6 +12,11 @@ IRVisitor::IRVisitor() = default;
 Type IRVisitor::declaredType(const string &name) const
 {
     return cfg->get_var_type(name);
+IRVisitor::IRVisitor() = default;
+
+string IRVisitor::currentPrefix()
+{
+    return "";
 }
 
 bool IRVisitor::isDeclaredInScope(const string &name) const
@@ -81,6 +86,10 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
 antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
 {
     currentFunction = ctx->VAR()->getText();
+    //Return: On définit le type du retour
+    string retTypeStr = ctx->type_spec()->getText();
+    currentReturnType = (retTypeStr == "void") ? TYPE_VOID : TYPE_INT;
+
     cfg = new CFG(currentFunction);
     currentSymbols.clear();
     scopeStack.clear();
@@ -117,11 +126,21 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
 
     visit(ctx->block());
 
+    //Return: verif de type retours pour "block de fin"
     if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
     {
-        string zero = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
-        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {zero});
+        if (currentReturnType == TYPE_VOID)
+        {
+            // void : pas de valeur, ret sans paramètre
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
+        }
+        else
+        {
+            // int : retour implicite 0 si pas de return explicite
+            string zero = cfg->create_new_tempvar(TYPE_INT);
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {zero});
+        }
         cfg->current_bb->exit_true = returnBB;
     }
 
@@ -181,6 +200,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 antlrcpp::Any IRVisitor::visitAssignSimple_stmt(ifccParser::AssignSimple_stmtContext *ctx)
 {
     string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
     if (!isDeclaredInScope(lhs))
     {
         cerr << "error: variable '" << lhs << "' used before declaration in function '"
@@ -201,244 +221,6 @@ antlrcpp::Any IRVisitor::visitAssignSimple_stmt(ifccParser::AssignSimple_stmtCon
     }
 
     cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitAddAssign_stmt(ifccParser::AddAssign_stmtContext *ctx)
-{
-    string lhs = ctx->VAR()->getText();
-
-    if (!isDeclaredInScope(lhs))
-    {
-        cerr << "error: variable '" << lhs << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    Type lhsType = declaredType(lhs);
-    string rhs = any_cast<string>(visit(ctx->expr()));
-    Type rhsType = cfg->get_var_type(rhs);
-    
-    if (lhsType != rhsType)
-    {
-        cerr << "error: type mismatch in assignment to '" << lhs
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    // a += b  =>  a = a + b
-    string temp = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {lhs, rhs, temp});
-    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {temp, lhs});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitMinusAssign_stmt(ifccParser::MinusAssign_stmtContext *ctx)
-{
-    string lhs = ctx->VAR()->getText();
-    
-    if (!isDeclaredInScope(lhs))
-    {
-        cerr << "error: variable '" << lhs << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    Type lhsType = declaredType(lhs);
-    string rhs = any_cast<string>(visit(ctx->expr()));
-    Type rhsType = cfg->get_var_type(rhs);
-    
-    if (lhsType != rhsType)
-    {
-        cerr << "error: type mismatch in assignment to '" << lhs
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    // a -= b  =>  a = a - b
-    string temp = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {lhs, rhs, temp});
-    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {temp, lhs});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitMultAssign_stmt(ifccParser::MultAssign_stmtContext *ctx)
-{
-    string lhs = ctx->VAR()->getText();
-    
-    if (!isDeclaredInScope(lhs))
-    {
-        cerr << "error: variable '" << lhs << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    Type lhsType = declaredType(lhs);
-    string rhs = any_cast<string>(visit(ctx->expr()));
-    Type rhsType = cfg->get_var_type(rhs);
-    
-    if (lhsType != rhsType)
-    {
-        cerr << "error: type mismatch in assignment to '" << lhs
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    // a *= b  =>  a = a * b
-    string temp = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::mul, TYPE_INT, {lhs, rhs, temp});
-    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {temp, lhs});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitDivAssign_stmt(ifccParser::DivAssign_stmtContext *ctx)
-{
-    string lhs = ctx->VAR()->getText();
-    
-    if (!isDeclaredInScope(lhs))
-    {
-        cerr << "error: variable '" << lhs << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    Type lhsType = declaredType(lhs);
-    string rhs = any_cast<string>(visit(ctx->expr()));
-    Type rhsType = cfg->get_var_type(rhs);
-    
-    if (lhsType != rhsType)
-    {
-        cerr << "error: type mismatch in assignment to '" << lhs
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    // a /= b  =>  a = a / b
-    string temp = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::div, TYPE_INT, {lhs, rhs, temp});
-    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {temp, lhs});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitPreMinus_stmt(ifccParser::PreMinus_stmtContext *ctx)
-{
-    string var = ctx->VAR()->getText();
-    
-    if (!isDeclaredInScope(var))
-    {
-        cerr << "error: variable '" << var << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    if (declaredType(var) != TYPE_INT)
-    {
-        cerr << "error: cannot decrement non-int variable '" << var
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    // --a  =>  a = a - 1
-    string one = cfg->create_new_tempvar(TYPE_INT);
-    string temp = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
-    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, one, temp});
-    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {temp, var});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitPreAdd_stmt(ifccParser::PreAdd_stmtContext *ctx)
-{
-    string var = ctx->VAR()->getText();
-    
-    if (!isDeclaredInScope(var))
-    {
-        cerr << "error: variable '" << var << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    if (declaredType(var) != TYPE_INT)
-    {
-        cerr << "error: cannot increment non-int variable '" << var
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    // ++a  =>  a = a + 1
-    string one = cfg->create_new_tempvar(TYPE_INT);
-    string temp = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
-    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, one, temp});
-    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {temp, var});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitPostAdd_stmt(ifccParser::PostAdd_stmtContext *ctx)
-{
-    string var = ctx->VAR()->getText();
-    
-    if (!isDeclaredInScope(var))
-    {
-        cerr << "error: variable '" << var << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    if (declaredType(var) != TYPE_INT)
-    {
-        cerr << "error: cannot increment non-int variable '" << var
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    // a++  =>  a = a + 1 (statement, value not used)
-    string one = cfg->create_new_tempvar(TYPE_INT);
-    string temp = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
-    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, one, temp});
-    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {temp, var});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitPostMinus_stmt(ifccParser::PostMinus_stmtContext *ctx)
-{
-    string var = ctx->VAR()->getText();
-    
-    if (!isDeclaredInScope(var))
-    {
-        cerr << "error: variable '" << var << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    if (declaredType(var) != TYPE_INT)
-    {
-        cerr << "error: cannot decrement non-int variable '" << var
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-    string one = cfg->create_new_tempvar(TYPE_INT);
-    string temp = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
-    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, one, temp});
-    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {temp, var});
     return 0;
 }
 
@@ -474,26 +256,56 @@ antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext
     return 0;
 }
 
+//Return: maj du return stmt
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    string retVal;
-    if (ctx->expr() != nullptr)
+    if (currentReturnType == TYPE_VOID)
     {
-        retVal = any_cast<string>(visit(ctx->expr()));
-        if (cfg->get_var_type(retVal) != TYPE_INT)
+        if (ctx->expr() != nullptr)
         {
-            cerr << "error: function '" << currentFunction << "' returns int, got pointer\n";
-            success = false;
+            cerr << "error: function '" << currentFunction
+                << "' is declared void but returns a value\n";
+            success = true;                                         
+            string dst = cfg->create_new_tempvar(TYPE_INT);    
+            //retour par default     
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {dst, "41"}); 
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {dst}); 
+        }
+        else
+        {
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
         }
     }
-    else
+    else // TYPE_INT
     {
-        retVal = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "0"});
+        string retVal;
+        if (ctx->expr() != nullptr)
+        {
+            retVal = any_cast<string>(visit(ctx->expr()));
+            Type retType = cfg->get_var_type(retVal);
+            if (retType != TYPE_INT)
+            {
+                cerr << "error: return type mismatch in function '" << currentFunction
+                     << "': expected " << typeToString(currentReturnType)
+                     << ", got " << typeToString(retType) << "\n";
+                success = false;
+            }
+        }
+        else
+        {
+            // return; sans valeur dans une fonction int : ERREUR
+            cerr << "error: function '" << currentFunction
+                 << "' declared int but 'return' has no value\n";
+            success = true;
+            // On génère quand même un retVal pour ne pas crasher la suite
+            retVal = cfg->create_new_tempvar(TYPE_INT);
+            //retour par default  
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "41"});
+        }
+        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
     }
-    cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
-    cfg->current_bb->exit_true = returnBB;
 
+    cfg->current_bb->exit_true = returnBB;
     BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
     cfg->add_bb(dead);
     cfg->current_bb = dead;
@@ -739,6 +551,7 @@ antlrcpp::Any IRVisitor::visitAddrOfVar(ifccParser::AddrOfVarContext *ctx)
 antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
     string name = ctx->VAR()->getText();
+    name = resolveVar(name);
     if (!isDeclaredInScope(name))
     {
         cerr << "error: variable '" << name << "' used before declaration in function '"

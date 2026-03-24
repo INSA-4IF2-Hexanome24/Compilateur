@@ -20,7 +20,6 @@ OBJECTS=build/ifccBaseVisitor.o \
 	build/main.o \
 	build/IRVisitor.o \
 	build/IR.o
-
 ifcc: $(OBJECTS)
 	@mkdir -p build
 	$(CC) $(LDFLAGS) $(OBJECTS) $(ANTLRLIB) -o ifcc
