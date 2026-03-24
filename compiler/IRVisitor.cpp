@@ -10,6 +10,81 @@ using std::vector;
 
 using namespace std;
 
+bool IRVisitor::tryFoldConst(ifccParser::ExprContext *ctx, int &val)
+{
+    if (auto *c = dynamic_cast<ifccParser::ConstExprContext *>(ctx))
+    {
+        val = std::stoi(c->CONST()->getText());
+        return true;
+    }
+    if (auto *u = dynamic_cast<ifccParser::UnaryMinusContext *>(ctx))
+    {
+        int v;
+        if (tryFoldConst(u->expr(), v)) { val = -v; return true; }
+    }
+    if (auto *p = dynamic_cast<ifccParser::ParensContext *>(ctx))
+        return tryFoldConst(p->expr(), val);
+    if (auto *e = dynamic_cast<ifccParser::PlusminusContext *>(ctx))
+    {
+        int l, r;
+        if (tryFoldConst(e->expr(0), l) && tryFoldConst(e->expr(1), r))
+        {
+            val = (e->OP->getText() == "+") ? l + r : l - r;
+            return true;
+        }
+    }
+    if (auto *e = dynamic_cast<ifccParser::MultdivmodContext *>(ctx))
+    {
+        int l, r;
+        if (tryFoldConst(e->expr(0), l) && tryFoldConst(e->expr(1), r))
+        {
+            string op = e->OP->getText();
+            if (op == "*") val = l * r;
+            else if (op == "/" && r != 0) val = l / r;
+            else if (op == "%" && r != 0) val = l % r;
+            else return false;
+            return true;
+        }
+    }
+    if (auto *e = dynamic_cast<ifccParser::LtgtContext *>(ctx))
+    {
+        int l, r;
+        if (tryFoldConst(e->expr(0), l) && tryFoldConst(e->expr(1), r))
+        {
+            val = (e->OP->getText() == "<") ? (l < r) : (l > r);
+            return true;
+        }
+    }
+    if (auto *e = dynamic_cast<ifccParser::EqneqContext *>(ctx))
+    {
+        int l, r;
+        if (tryFoldConst(e->expr(0), l) && tryFoldConst(e->expr(1), r))
+        {
+            val = (e->OP->getText() == "==") ? (l == r) : (l != r);
+            return true;
+        }
+    }
+    if (auto *e = dynamic_cast<ifccParser::BandContext *>(ctx))
+    {
+        int l, r;
+        if (tryFoldConst(e->expr(0), l) && tryFoldConst(e->expr(1), r))
+        { val = l & r; return true; }
+    }
+    if (auto *e = dynamic_cast<ifccParser::BxorContext *>(ctx))
+    {
+        int l, r;
+        if (tryFoldConst(e->expr(0), l) && tryFoldConst(e->expr(1), r))
+        { val = l ^ r; return true; }
+    }
+    if (auto *e = dynamic_cast<ifccParser::BorContext *>(ctx))
+    {
+        int l, r;
+        if (tryFoldConst(e->expr(0), l) && tryFoldConst(e->expr(1), r))
+        { val = l | r; return true; }
+    }
+    return false;
+}
+
 IRVisitor::IRVisitor()
 {
     numMaxTemps = 0;
@@ -101,6 +176,15 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 {
+    int foldedVal;
+    if (tryFoldConst(ctx, foldedVal))
+    {
+        string dst = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(
+            IRInstr::ldconst, TYPE_INT, {dst, std::to_string(foldedVal)});
+        return dst;
+    }
+
     string lhs = any_cast<string>(visit(ctx->expr(0)));
     string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
@@ -123,6 +207,15 @@ antlrcpp::Any IRVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 
 antlrcpp::Any IRVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 {
+
+    int foldedVal;
+    if (tryFoldConst(ctx, foldedVal))
+    {
+        string dst = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(
+            IRInstr::ldconst, TYPE_INT, {dst, std::to_string(foldedVal)});
+        return dst;
+    }
     string lhs = any_cast<string>(visit(ctx->expr(0)));
     string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
@@ -141,6 +234,15 @@ antlrcpp::Any IRVisitor::visitPlusminus(ifccParser::PlusminusContext *ctx)
 
 antlrcpp::Any IRVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 {
+    int foldedVal;
+    if (tryFoldConst(ctx, foldedVal))
+    {
+        string dst = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(
+            IRInstr::ldconst, TYPE_INT, {dst, std::to_string(foldedVal)});
+        return dst;
+    }
+
     string lhs = any_cast<string>(visit(ctx->expr(0)));
     string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
@@ -159,6 +261,15 @@ antlrcpp::Any IRVisitor::visitLtgt(ifccParser::LtgtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 {
+    int foldedVal;
+    if (tryFoldConst(ctx, foldedVal))
+    {
+        string dst = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(
+            IRInstr::ldconst, TYPE_INT, {dst, std::to_string(foldedVal)});
+        return dst;
+    }
+
     string lhs = any_cast<string>(visit(ctx->expr(0)));
     string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
@@ -177,6 +288,15 @@ antlrcpp::Any IRVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBand(ifccParser::BandContext *ctx)
 {
+    int foldedVal;
+    if (tryFoldConst(ctx, foldedVal))
+    {
+        string dst = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(
+            IRInstr::ldconst, TYPE_INT, {dst, std::to_string(foldedVal)});
+        return dst;
+    }
+
     string lhs = any_cast<string>(visit(ctx->expr(0)));
     string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
@@ -186,6 +306,15 @@ antlrcpp::Any IRVisitor::visitBand(ifccParser::BandContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBxor(ifccParser::BxorContext *ctx)
 {
+    int foldedVal;
+    if (tryFoldConst(ctx, foldedVal))
+    {
+        string dst = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(
+            IRInstr::ldconst, TYPE_INT, {dst, std::to_string(foldedVal)});
+        return dst;
+    }
+
     string lhs = any_cast<string>(visit(ctx->expr(0)));
     string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);
@@ -195,6 +324,15 @@ antlrcpp::Any IRVisitor::visitBxor(ifccParser::BxorContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBor(ifccParser::BorContext *ctx)
 {
+    int foldedVal;
+    if (tryFoldConst(ctx, foldedVal))
+    {
+        string dst = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(
+            IRInstr::ldconst, TYPE_INT, {dst, std::to_string(foldedVal)});
+        return dst;
+    }
+
     string lhs = any_cast<string>(visit(ctx->expr(0)));
     string rhs = any_cast<string>(visit(ctx->expr(1)));
     string dst = cfg->create_new_tempvar(TYPE_INT);

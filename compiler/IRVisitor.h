@@ -16,6 +16,8 @@ public:
     CFG *cfg = nullptr;
     BasicBlock *returnBB = nullptr;
 
+    bool tryFoldConst(ifccParser::ExprContext *ctx, int &val);
+
     IRVisitor();
     IRVisitor(const std::map<std::string, int> &table, int numMaxTemps);
 
