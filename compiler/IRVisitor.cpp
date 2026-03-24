@@ -417,7 +417,7 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx)
         cfg->current_bb->test_var_name = cmp;
         cfg->current_bb->exit_true  = bodyBlocks[i];
 
-        // false → next comparison block
+        // false -> next comparison block
         BasicBlock *nextCmp = new BasicBlock(cfg, cfg->new_BB_name());
         cfg->add_bb(nextCmp);
         cfg->current_bb->exit_false = nextCmp;
