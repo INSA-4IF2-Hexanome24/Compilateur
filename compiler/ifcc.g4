@@ -39,6 +39,9 @@ stmt
   | block
   | while_stmt
   | return_stmt
+  | break_stmt       
+  | continue_stmt    
+  | switch_stmt
   ;
 
 expr_stmt
@@ -93,6 +96,26 @@ block
 
 while_stmt
   : 'while' '(' expr ')' block
+  ;
+
+break_stmt
+  : 'break' ';'
+  ;
+
+continue_stmt
+  : 'continue' ';'
+  ;
+
+switch_stmt
+  : 'switch' '(' expr ')' '{' case_clause* default_clause? '}'
+  ;
+
+case_clause
+  : 'case' CONST ':' stmt*
+  ;
+
+default_clause
+  : 'default' ':' stmt*
   ;
 
 

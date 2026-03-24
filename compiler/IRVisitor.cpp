@@ -881,3 +881,117 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
     cfg->current_bb = afterBB;
     return 0;
 }
+
+
+antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext *ctx)
+{
+    cfg->current_bb->exit_true = breakStack.back();
+
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitContinue_stmt(ifccParser::Continue_stmtContext *ctx)
+{
+    cfg->current_bb->exit_true = continueStack.back();
+
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx)
+{
+    // evaluate the switch expression
+    string switchVal = any_cast<string>(visit(ctx->expr()));
+
+    BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(afterBB);
+
+    // break inside any case jumps to afterBB
+    breakStack.push_back(afterBB);
+
+    auto cases   = ctx->case_clause();
+    auto defClause = ctx->default_clause(); // nullable
+
+    // create all body blocks upfront
+    vector<BasicBlock*> bodyBlocks;
+    for (int i = 0; i < (int)cases.size(); i++)
+    {
+        BasicBlock *bb = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(bb);
+        bodyBlocks.push_back(bb);
+    }
+
+    BasicBlock *defaultBB = nullptr;
+    if (defClause != nullptr)
+    {
+        defaultBB = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(defaultBB);
+    }
+
+    // chain of comparisons from current block
+    for (int i = 0; i < (int)cases.size(); i++)
+    {
+        string constVal = cases[i]->CONST()->getText();
+
+        // cmp switchVal == constVal
+        string cmp = cfg->create_new_tempvar(TYPE_INT);
+        string k   = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {k, constVal});
+        cfg->current_bb->add_IRInstr(IRInstr::cmp_eq,  TYPE_INT, {switchVal, k, cmp});
+
+        cfg->current_bb->test_var_name = cmp;
+        cfg->current_bb->exit_true  = bodyBlocks[i];
+
+        // false -> next comparison block
+        BasicBlock *nextCmp = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(nextCmp);
+        cfg->current_bb->exit_false = nextCmp;
+        cfg->current_bb = nextCmp;
+    }
+
+    // last comparison block: jump to default or after
+    cfg->current_bb->exit_true = (defaultBB != nullptr) ? defaultBB : afterBB;
+
+    // generate each case body
+    for (int i = 0; i < (int)cases.size(); i++)
+    {
+        cfg->current_bb = bodyBlocks[i];
+        for (auto s : cases[i]->stmt())
+            visit(s);
+
+        // fallthrough: if no break was hit, go to next case body (or afterBB)
+        if (cfg->current_bb->exit_true  == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
+        {
+            if (i + 1 < (int)bodyBlocks.size())
+                cfg->current_bb->exit_true = bodyBlocks[i + 1];
+            else if (defaultBB != nullptr)
+                cfg->current_bb->exit_true = defaultBB;
+            else
+                cfg->current_bb->exit_true = afterBB;
+        }
+    }
+
+    // generate default body
+    if (defaultBB != nullptr)
+    {
+        cfg->current_bb = defaultBB;
+        for (auto s : defClause->stmt())
+            visit(s);
+
+        if (cfg->current_bb->exit_true  == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
+        {
+            cfg->current_bb->exit_true = afterBB;
+        }
+    }
+
+    breakStack.pop_back();
+    cfg->current_bb = afterBB;
+    return 0;
+}
