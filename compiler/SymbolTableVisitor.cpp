@@ -6,10 +6,9 @@
 antlrcpp::Any SymbolTableVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {
     visit(ctx->expr());
-
-    // visit loop body (always present, index 0)
+    loopDepth++;
     visit(ctx->block());
-
+    loopDepth--;
     return 0;
 }
 
@@ -240,3 +239,23 @@ antlrcpp::Any SymbolTableVisitor::visitVarExpr(
     {
       
     }
+
+antlrcpp::Any SymbolTableVisitor::visitBreak_stmt(ifccParser::Break_stmtContext *ctx)
+{
+    if (loopDepth == 0)
+    {
+        std::cerr << "error: 'break' outside of loop\n";
+        success = false;
+    }
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitContinue_stmt(ifccParser::Continue_stmtContext *ctx)
+{
+    if (loopDepth == 0)
+    {
+        std::cerr << "error: 'continue' outside of loop\n";
+        success = false;
+    }
+    return 0;
+}

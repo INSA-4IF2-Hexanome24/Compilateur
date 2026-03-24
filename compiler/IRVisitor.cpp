@@ -317,8 +317,8 @@ antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext *ctx)
 
 antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {
-    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *condBB  = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *bodyBB  = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
 
     cfg->add_bb(condBB);
@@ -330,17 +330,45 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
     cfg->current_bb = condBB;
     string cond = any_cast<string>(visit(ctx->expr()));
     condBB->test_var_name = cond;
-    condBB->exit_true = bodyBB;
+    condBB->exit_true  = bodyBB;
     condBB->exit_false = afterBB;
+
+    breakStack.push_back(afterBB);
+    continueStack.push_back(condBB);
 
     cfg->current_bb = bodyBB;
     visit(ctx->block());
-    if (bodyBB->exit_true == nullptr && bodyBB->exit_false == nullptr)
+
+
+    if (cfg->current_bb->exit_true == nullptr &&
+        cfg->current_bb->exit_false == nullptr)
     {
-        bodyBB->exit_true = condBB;
+        cfg->current_bb->exit_true = condBB; 
     }
+
+    breakStack.pop_back();
+    continueStack.pop_back();
 
     cfg->current_bb = afterBB;
     return 0;
 }
 
+antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext *ctx)
+{
+    cfg->current_bb->exit_true = breakStack.back();
+
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitContinue_stmt(ifccParser::Continue_stmtContext *ctx)
+{
+    cfg->current_bb->exit_true = continueStack.back();
+
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
+    return 0;
+}

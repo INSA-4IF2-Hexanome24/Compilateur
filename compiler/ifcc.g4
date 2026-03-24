@@ -20,6 +20,8 @@ stmt
   | block
   | while_stmt
   | return_stmt
+  | break_stmt       
+  | continue_stmt    
   ;
 
 expr_stmt
@@ -64,6 +66,13 @@ while_stmt
   : 'while' '(' expr ')' block
   ;
 
+break_stmt
+  : 'break' ';'
+  ;
+
+continue_stmt
+  : 'continue' ';'
+  ;
 
 // ----------------------
 // Expressions

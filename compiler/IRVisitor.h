@@ -11,6 +11,10 @@
 class IRVisitor : public ifccBaseVisitor {
 public:
     std::map<std::string, int> symbolTable;
+
+    std::vector<BasicBlock*> breakStack;
+    std::vector<BasicBlock*> continueStack;
+
     int labelCount = 0;
     int numMaxTemps;
     CFG *cfg = nullptr;
@@ -50,4 +54,6 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitBreak_stmt(ifccParser::Break_stmtContext *ctx) override;      
+    virtual antlrcpp::Any visitContinue_stmt(ifccParser::Continue_stmtContext *ctx) override; 
 };

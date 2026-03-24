@@ -21,6 +21,7 @@ public:
 
     int numMaxTemps = 0;
     int nextIndex = -4;
+    int loopDepth = 0; // while -> break/continue
     bool success = true;
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
@@ -45,4 +46,6 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitBreak_stmt(ifccParser::Break_stmtContext *ctx) override;      // NEW
+    antlrcpp::Any visitContinue_stmt(ifccParser::Continue_stmtContext *ctx) override; // NEW
 };
