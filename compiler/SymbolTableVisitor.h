@@ -46,6 +46,7 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitBreak_stmt(ifccParser::Break_stmtContext *ctx) override;      // NEW
-    antlrcpp::Any visitContinue_stmt(ifccParser::Continue_stmtContext *ctx) override; // NEW
+    virtual antlrcpp::Any visitBreak_stmt(ifccParser::Break_stmtContext *ctx) override;      
+    virtual antlrcpp::Any visitContinue_stmt(ifccParser::Continue_stmtContext *ctx) override; 
+    virtual antlrcpp::Any visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx) override; 
 };

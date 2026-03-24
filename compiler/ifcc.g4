@@ -22,6 +22,7 @@ stmt
   | return_stmt
   | break_stmt       
   | continue_stmt    
+  | switch_stmt
   ;
 
 expr_stmt
@@ -72,6 +73,18 @@ break_stmt
 
 continue_stmt
   : 'continue' ';'
+  ;
+
+switch_stmt
+  : 'switch' '(' expr ')' '{' case_clause* default_clause? '}'
+  ;
+
+case_clause
+  : 'case' CONST ':' stmt*
+  ;
+
+default_clause
+  : 'default' ':' stmt*
   ;
 
 // ----------------------

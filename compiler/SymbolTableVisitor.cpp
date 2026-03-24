@@ -259,3 +259,17 @@ antlrcpp::Any SymbolTableVisitor::visitContinue_stmt(ifccParser::Continue_stmtCo
     }
     return 0;
 }
+
+antlrcpp::Any SymbolTableVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx)
+{
+    visit(ctx->expr());
+    loopDepth++; // break is valid inside switch
+    for (auto c : ctx->case_clause())
+        for (auto s : c->stmt())
+            visit(s);
+    if (ctx->default_clause())
+        for (auto s : ctx->default_clause()->stmt())
+            visit(s);
+    loopDepth--;
+    return 0;
+}
