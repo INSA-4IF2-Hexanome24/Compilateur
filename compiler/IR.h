@@ -14,8 +14,13 @@ using std::vector;
 
 enum Type {
     TYPE_INT,
-    TYPE_PTR
+    TYPE_PTR,
+	TYPE_VOID
 };
+
+//Return:Pour les messages d'erreurs
+std::string typeToString(Type t);
+
 
 class BasicBlock;
 class CFG;

@@ -68,4 +68,6 @@ public:
 private:
     Type declaredType(const std::string &name) const;
     bool isDeclaredInScope(const std::string &name) const;
+    //Return: on donne le type de retour en param de classe
+    Type currentReturnType = TYPE_INT;
 };

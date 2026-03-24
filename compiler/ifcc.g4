@@ -9,8 +9,14 @@ prog
   ;
 
 function_def
-  : 'int' VAR '(' param_list? ')' block
+  : type_spec VAR '(' param_list? ')' block
   ;
+
+type_spec
+  : 'int'
+  | 'void'
+  ;
+
 
 param_list
   : param (',' param)*

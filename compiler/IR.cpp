@@ -3,6 +3,21 @@
 
 using namespace std;
 
+
+/* ================= Fonctions utilitaires ================= */
+//Pour les message d'erreur de types de retour 
+std::string typeToString(Type t)
+{
+    switch (t)
+    {
+        case TYPE_INT:  return "int";
+        case TYPE_PTR:  return "pointer";
+        case TYPE_VOID: return "void";
+        default:        return "unknown";
+    }
+}
+
+
 /* ================= IRInstr ================= */
 
 IRInstr::IRInstr(BasicBlock* bb_, Operation op_, Type t_, vector<string> params_)
@@ -12,6 +27,7 @@ IRInstr::IRInstr(BasicBlock* bb_, Operation op_, Type t_, vector<string> params_
     t = t_;
     params = params_;
 }
+
 
 void IRInstr::gen_asm(ostream &o)
 {
@@ -193,9 +209,14 @@ void IRInstr::gen_asm(ostream &o)
 
         case ret:
         {
-            // params: src
-            string src = params[0];
-            o << "    movl " << cfg->IR_reg_to_asm(src) << ", %eax\n";
+            if (params.empty())
+            {
+                o << "    movl $0, %eax\n";
+            }
+            else
+            {
+                o << "    movl " << cfg->IR_reg_to_asm(params[0]) << ", %eax\n";
+            }
             break;
         }
 

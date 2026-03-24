@@ -91,6 +91,10 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
 antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
 {
     currentFunction = ctx->VAR()->getText();
+    //Return: On définit le type du retour
+    string retTypeStr = ctx->type_spec()->getText();
+    currentReturnType = (retTypeStr == "void") ? TYPE_VOID : TYPE_INT;
+
     cfg = new CFG(currentFunction);
     currentSymbols.clear();
     scopeStack.clear();
@@ -127,11 +131,21 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
 
     visit(ctx->block());
 
+    //Return: verif de type retours pour "block de fin"
     if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
     {
-        string zero = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
-        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {zero});
+        if (currentReturnType == TYPE_VOID)
+        {
+            // void : pas de valeur, ret sans paramètre
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
+        }
+        else
+        {
+            // int : retour implicite 0 si pas de return explicite
+            string zero = cfg->create_new_tempvar(TYPE_INT);
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {zero});
+        }
         cfg->current_bb->exit_true = returnBB;
     }
 
@@ -247,26 +261,56 @@ antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext
     return 0;
 }
 
+//Return: maj du return stmt
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    string retVal;
-    if (ctx->expr() != nullptr)
+    if (currentReturnType == TYPE_VOID)
     {
-        retVal = any_cast<string>(visit(ctx->expr()));
-        if (cfg->get_var_type(retVal) != TYPE_INT)
+        if (ctx->expr() != nullptr)
         {
-            cerr << "error: function '" << currentFunction << "' returns int, got pointer\n";
-            success = false;
+            cerr << "error: function '" << currentFunction
+                << "' is declared void but returns a value\n";
+            success = true;                                         
+            string dst = cfg->create_new_tempvar(TYPE_INT);    
+            //retour par default     
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {dst, "41"}); 
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {dst}); 
+        }
+        else
+        {
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
         }
     }
-    else
+    else // TYPE_INT
     {
-        retVal = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "0"});
+        string retVal;
+        if (ctx->expr() != nullptr)
+        {
+            retVal = any_cast<string>(visit(ctx->expr()));
+            Type retType = cfg->get_var_type(retVal);
+            if (retType != TYPE_INT)
+            {
+                cerr << "error: return type mismatch in function '" << currentFunction
+                     << "': expected " << typeToString(currentReturnType)
+                     << ", got " << typeToString(retType) << "\n";
+                success = false;
+            }
+        }
+        else
+        {
+            // return; sans valeur dans une fonction int : ERREUR
+            cerr << "error: function '" << currentFunction
+                 << "' declared int but 'return' has no value\n";
+            success = true;
+            // On génère quand même un retVal pour ne pas crasher la suite
+            retVal = cfg->create_new_tempvar(TYPE_INT);
+            //retour par default  
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "41"});
+        }
+        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
     }
-    cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
-    cfg->current_bb->exit_true = returnBB;
 
+    cfg->current_bb->exit_true = returnBB;
     BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
     cfg->add_bb(dead);
     cfg->current_bb = dead;
