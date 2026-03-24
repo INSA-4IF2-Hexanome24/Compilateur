@@ -57,7 +57,15 @@ var_decl
   ;
 
 assign_stmt
-  : VAR '=' expr ';'
+  : VAR '=' expr ';'  # assignSimple_stmt
+  | VAR '+=' expr ';' # addAssign_stmt
+  | VAR '-=' expr ';' # minusAssign_stmt
+  | VAR '*=' expr ';' # multAssign_stmt
+  | VAR '/=' expr ';' # divAssign_stmt
+  | '--' VAR ';' # preMinus_stmt
+  | '++' VAR ';' # preAdd_stmt
+  | VAR '--' ';' # postMinus_stmt
+  | VAR '++' ';' # postAdd_stmt
   ;
 
 ptr_assign_stmt

@@ -45,4 +45,22 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitAssignSimple_stmt(
+        ifccParser::AssignSimple_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitaddAssign_stmt(
+        ifccParser::addAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitminusAssign_stmt(
+        ifccParser::minusAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitmultAssign_stmt(
+        ifccParser::multAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitdivAssign_stmt(
+        ifccParser::divAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitpreMinus_stmt(
+        ifccParser::preMinus_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitpreAdd_stmt(
+        ifccParser::preAdd_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitpostAdd_stmt(
+        ifccParser::postAdd_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitpostMinus_stmt(
+        ifccParser::postMinus_stmtContext *ctx) override;
 };

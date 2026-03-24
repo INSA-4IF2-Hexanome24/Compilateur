@@ -30,8 +30,24 @@ public:
         ifccParser::Expr_stmtContext *ctx) override;
     virtual antlrcpp::Any visitDecl_stmt(
         ifccParser::Decl_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitAssign_stmt(
-        ifccParser::Assign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitAssignSimple_stmt(
+        ifccParser::AssignSimple_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitAddAssign_stmt(
+        ifccParser::AddAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitMinusAssign_stmt(
+        ifccParser::MinusAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitMultAssign_stmt(
+        ifccParser::MultAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitDivAssign_stmt(
+        ifccParser::DivAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPreMinus_stmt(
+        ifccParser::PreMinus_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPreAdd_stmt(
+        ifccParser::PreAdd_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPostAdd_stmt(
+        ifccParser::PostAdd_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPostMinus_stmt(
+        ifccParser::PostMinus_stmtContext *ctx) override;
     virtual antlrcpp::Any visitPtr_assign_stmt(
         ifccParser::Ptr_assign_stmtContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(

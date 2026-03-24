@@ -178,7 +178,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
     return 0;
 }
 
-antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
+antlrcpp::Any IRVisitor::visitAssignSimple_stmt(ifccParser::AssignSimple_stmtContext *ctx)
 {
     string lhs = ctx->VAR()->getText();
     if (!isDeclaredInScope(lhs))
@@ -201,6 +201,244 @@ antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
     }
 
     cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitAddAssign_stmt(ifccParser::AddAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    Type lhsType = declaredType(lhs);
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    Type rhsType = cfg->get_var_type(rhs);
+    
+    if (lhsType != rhsType)
+    {
+        cerr << "error: type mismatch in assignment to '" << lhs
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    // a += b  =>  a = a + b
+    string temp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {lhs, rhs, temp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {temp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitMinusAssign_stmt(ifccParser::MinusAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    Type lhsType = declaredType(lhs);
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    Type rhsType = cfg->get_var_type(rhs);
+    
+    if (lhsType != rhsType)
+    {
+        cerr << "error: type mismatch in assignment to '" << lhs
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    // a -= b  =>  a = a - b
+    string temp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {lhs, rhs, temp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {temp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitMultAssign_stmt(ifccParser::MultAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    Type lhsType = declaredType(lhs);
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    Type rhsType = cfg->get_var_type(rhs);
+    
+    if (lhsType != rhsType)
+    {
+        cerr << "error: type mismatch in assignment to '" << lhs
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    // a *= b  =>  a = a * b
+    string temp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::mul, TYPE_INT, {lhs, rhs, temp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {temp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitDivAssign_stmt(ifccParser::DivAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    Type lhsType = declaredType(lhs);
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    Type rhsType = cfg->get_var_type(rhs);
+    
+    if (lhsType != rhsType)
+    {
+        cerr << "error: type mismatch in assignment to '" << lhs
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    // a /= b  =>  a = a / b
+    string temp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::div, TYPE_INT, {lhs, rhs, temp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {temp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitPreMinus_stmt(ifccParser::PreMinus_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    if (declaredType(var) != TYPE_INT)
+    {
+        cerr << "error: cannot decrement non-int variable '" << var
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    // --a  =>  a = a - 1
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string temp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, one, temp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {temp, var});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitPreAdd_stmt(ifccParser::PreAdd_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    if (declaredType(var) != TYPE_INT)
+    {
+        cerr << "error: cannot increment non-int variable '" << var
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    // ++a  =>  a = a + 1
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string temp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, one, temp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {temp, var});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitPostAdd_stmt(ifccParser::PostAdd_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    if (declaredType(var) != TYPE_INT)
+    {
+        cerr << "error: cannot increment non-int variable '" << var
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    // a++  =>  a = a + 1 (statement, value not used)
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string temp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, one, temp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {temp, var});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitPostMinus_stmt(ifccParser::PostMinus_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration in function '"
+             << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+
+    if (declaredType(var) != TYPE_INT)
+    {
+        cerr << "error: cannot decrement non-int variable '" << var
+             << "' in function '" << currentFunction << "'\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string temp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, one, temp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {temp, var});
     return 0;
 }
 
