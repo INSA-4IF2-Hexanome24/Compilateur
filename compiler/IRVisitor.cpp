@@ -7,6 +7,10 @@
 
 using namespace std;
 
+int loopDepth = 0;
+std::vector<BasicBlock*> breakStack;
+std::vector<BasicBlock*> continueStack;
+
 IRVisitor::IRVisitor() = default;
 
 Type IRVisitor::declaredType(const string &name) const
@@ -855,8 +859,8 @@ antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext *ctx)
 
 antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {
-    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *condBB  = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *bodyBB  = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
 
     cfg->add_bb(condBB);
@@ -868,15 +872,24 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
     cfg->current_bb = condBB;
     string cond = any_cast<string>(visit(ctx->expr()));
     condBB->test_var_name = cond;
-    condBB->exit_true = bodyBB;
+    condBB->exit_true  = bodyBB;
     condBB->exit_false = afterBB;
+
+    breakStack.push_back(afterBB);
+    continueStack.push_back(condBB);
+    loopDepth++;
 
     cfg->current_bb = bodyBB;
     visit(ctx->block());
-    if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
+    if (cfg->current_bb->exit_true  == nullptr &&
+        cfg->current_bb->exit_false == nullptr)
     {
         cfg->current_bb->exit_true = condBB;
     }
+
+    loopDepth--;
+    breakStack.pop_back();
+    continueStack.pop_back();
 
     cfg->current_bb = afterBB;
     return 0;
@@ -885,6 +898,12 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext *ctx)
 {
+    if (loopDepth == 0)
+    {
+        cerr << "error: 'break' outside of loop or switch\n";
+        success = false;
+        return 0;
+    }
     cfg->current_bb->exit_true = breakStack.back();
 
     BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
@@ -895,6 +914,12 @@ antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitContinue_stmt(ifccParser::Continue_stmtContext *ctx)
 {
+    if (loopDepth == 0 || continueStack.empty())
+    {
+        cerr << "error: 'continue' outside of loop\n";
+        success = false;
+        return 0;
+    }
     cfg->current_bb->exit_true = continueStack.back();
 
     BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
@@ -913,6 +938,7 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx)
 
     // break inside any case jumps to afterBB
     breakStack.push_back(afterBB);
+    loopDepth++;
 
     auto cases   = ctx->case_clause();
     auto defClause = ctx->default_clause(); // nullable
@@ -991,6 +1017,7 @@ antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx)
         }
     }
 
+    loopDepth--;
     breakStack.pop_back();
     cfg->current_bb = afterBB;
     return 0;
