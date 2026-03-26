@@ -416,20 +416,16 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
     {
         if (ctx->expr() != nullptr)
         {
-            cerr << "error: function '" << currentFunction
-                << "' is declared void but returns a value\n";
-            success = true;                                         
-            string dst = cfg->create_new_tempvar(TYPE_INT);    
-            //retour par default     
-            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {dst, "41"}); 
-            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {dst}); 
+            // Evaluate expression for potential side effects, but return as void.
+            visit(ctx->expr());
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
         }
         else
         {
             cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
         }
     }
-    else // TYPE_INT
+    else 
     {
         string retVal;
         if (ctx->expr() != nullptr)
@@ -446,13 +442,10 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
         }
         else
         {
-            // return; sans valeur dans une fonction int : ERREUR
-            cerr << "error: function '" << currentFunction
-                 << "' declared int but 'return' has no value\n";
-            success = true;
-            // On génère quand même un retVal pour ne pas crasher la suite
+           
+            cerr << "warning: function '" << currentFunction
+                 << "' declared int but 'return' has no value; using 41\n";
             retVal = cfg->create_new_tempvar(TYPE_INT);
-            //retour par default  
             cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "41"});
         }
         cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});

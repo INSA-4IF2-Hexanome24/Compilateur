@@ -65,8 +65,8 @@ void IRInstr::gen_asm(ostream &o)
             }
             else
             {
-                o << "    movl " << cfg->IR_reg_to_asm(src) << ", %eax\n";
-                o << "    movl %eax, " << cfg->IR_reg_to_asm(dest) << "\n";
+                o << "    movl " << cfg->IR_reg_to_asm(src) << ", %ecx\n";
+                o << "    movl %ecx, " << cfg->IR_reg_to_asm(dest) << "\n";
             }
             break;
         }
@@ -202,6 +202,8 @@ void IRInstr::gen_asm(ostream &o)
                 }
             }
 
+            // Avoid leaking a previous return value when the callee returns void.
+            o << "    movl $0, %eax\n";
             o << "    call " << fname << "\n";
             o << "    movl %eax, " << cfg->IR_reg_to_asm(dest) << "\n";
             break;
@@ -211,7 +213,10 @@ void IRInstr::gen_asm(ostream &o)
         {
             if (params.empty())
             {
-                o << "    movl $0, %eax\n";
+                if (t != TYPE_VOID)
+                {
+                    o << "    movl $0, %eax\n";
+                }
             }
             else
             {
@@ -259,8 +264,8 @@ void BasicBlock::gen_asm(ostream &o)
     }
     else
     {
-        o << "    movl " << cfg->IR_reg_to_asm(test_var_name) << ", %eax\n";
-        o << "    cmpl $0, %eax\n";
+        o << "    movl " << cfg->IR_reg_to_asm(test_var_name) << ", %ecx\n";
+        o << "    cmpl $0, %ecx\n";
         o << "    je " << exit_false->label << "\n";
         o << "    jmp " << exit_true->label << "\n";
     }
