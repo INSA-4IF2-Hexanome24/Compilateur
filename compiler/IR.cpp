@@ -372,7 +372,7 @@ bool CFG::has_symbol(const string& name) const
 
 string CFG::create_new_tempvar(Type t)
 {
-    string name = "_tmp" + to_string(SymbolIndex.size());
+    string name = "_tmp" + to_string(nextTempIndex++);
     add_to_symbol_table(name, t);
     return name;
 }

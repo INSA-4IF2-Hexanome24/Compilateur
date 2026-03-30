@@ -156,6 +156,7 @@ class CFG {
 	BasicBlock* current_bb;
 
  protected:
+ 	int nextTempIndex = 0;
 	map <string, Type> SymbolType; /**< part of the symbol table  */
 	map <string, int> SymbolIndex; /**< part of the symbol table  */
 	vector<string> paramOrder;
