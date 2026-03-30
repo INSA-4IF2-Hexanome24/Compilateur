@@ -17,11 +17,25 @@ public:
     std::set<std::string> currentSymbols;
     std::vector<std::set<std::string>> scopeStack;
     std::string currentFunction;
-    CFG *cfg = nullptr;
-    BasicBlock *returnBB = nullptr;
+    
     bool success = true;
 
+     std::map<std::string, int> symbolTable;
+
+    std::vector<BasicBlock*> breakStack;
+    std::vector<BasicBlock*> continueStack;
+
+    int labelCount = 0;
+    int numMaxTemps;
+
+    CFG *cfg = nullptr;
+    BasicBlock *returnBB = nullptr;
+
+    
+
     IRVisitor();
+    std::string currentPrefix();
+    std::string resolveVar(std::string var);
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitFunction_def(
@@ -30,12 +44,31 @@ public:
         ifccParser::Expr_stmtContext *ctx) override;
     virtual antlrcpp::Any visitDecl_stmt(
         ifccParser::Decl_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitAssign_stmt(
-        ifccParser::Assign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitAssignSimple_stmt(
+        ifccParser::AssignSimple_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitAddAssign_stmt(
+        ifccParser::AddAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitMinusAssign_stmt(
+        ifccParser::MinusAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitMultAssign_stmt(
+        ifccParser::MultAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitDivAssign_stmt(
+        ifccParser::DivAssign_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPreMinus_stmt(
+        ifccParser::PreMinus_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPreAdd_stmt(
+        ifccParser::PreAdd_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPostAdd_stmt(
+        ifccParser::PostAdd_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitPostMinus_stmt(
+        ifccParser::PostMinus_stmtContext *ctx) override;
     virtual antlrcpp::Any visitPtr_assign_stmt(
         ifccParser::Ptr_assign_stmtContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(
         ifccParser::Return_stmtContext *ctx) override;
+
+    virtual antlrcpp::Any visitAndCond(ifccParser::AndCondContext *ctx) override;
+    virtual antlrcpp::Any visitOrCond(ifccParser::OrCondContext *ctx) override;
 
     virtual antlrcpp::Any visitMultdivmod(ifccParser::MultdivmodContext *ctx) override;
     virtual antlrcpp::Any visitPlusminus(ifccParser::PlusminusContext *ctx) override;
@@ -62,6 +95,11 @@ public:
     virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
+    
+    virtual antlrcpp::Any visitBreak_stmt(ifccParser::Break_stmtContext *ctx) override;      
+    virtual antlrcpp::Any visitContinue_stmt(ifccParser::Continue_stmtContext *ctx) override; 
+    virtual antlrcpp::Any visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx) override;
+    Type currentReturnType;
 
 private:
     Type declaredType(const std::string &name) const;

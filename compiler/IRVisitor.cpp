@@ -7,11 +7,25 @@
 
 using namespace std;
 
+int loopDepth = 0;
+std::vector<BasicBlock*> breakStack;
+std::vector<BasicBlock*> continueStack;
+
 IRVisitor::IRVisitor() = default;
 
 Type IRVisitor::declaredType(const string &name) const
 {
-    return cfg->get_var_type(name);
+    return cfg->get_var_type(name);}
+
+
+string IRVisitor::currentPrefix()
+{
+    return "";
+}
+
+string IRVisitor::resolveVar(string var)
+{
+    return var;
 }
 
 bool IRVisitor::isDeclaredInScope(const string &name) const
@@ -81,6 +95,10 @@ antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
 antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
 {
     currentFunction = ctx->VAR()->getText();
+    //Return: On définit le type du retour
+    string retTypeStr = ctx->type_spec()->getText();
+    currentReturnType = (retTypeStr == "void") ? TYPE_VOID : TYPE_INT;
+
     cfg = new CFG(currentFunction);
     currentSymbols.clear();
     scopeStack.clear();
@@ -117,11 +135,21 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
 
     visit(ctx->block());
 
+    //Return: verif de type retours pour "block de fin"
     if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
     {
-        string zero = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
-        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {zero});
+        if (currentReturnType == TYPE_VOID)
+        {
+            // void : pas de valeur, ret sans paramètre
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
+        }
+        else
+        {
+            // int : retour implicite 0 si pas de return explicite
+            string zero = cfg->create_new_tempvar(TYPE_INT);
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {zero});
+        }
         cfg->current_bb->exit_true = returnBB;
     }
 
@@ -178,9 +206,10 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
     return 0;
 }
 
-antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
+antlrcpp::Any IRVisitor::visitAssignSimple_stmt(ifccParser::AssignSimple_stmtContext *ctx)
 {
     string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
     if (!isDeclaredInScope(lhs))
     {
         cerr << "error: variable '" << lhs << "' used before declaration in function '"
@@ -202,6 +231,150 @@ antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
 
     cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
     return 0;
+}
+
+antlrcpp::Any IRVisitor::visitAddAssign_stmt(ifccParser::AddAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {lhs, rhs, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitMinusAssign_stmt(ifccParser::MinusAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {lhs, rhs, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitMultAssign_stmt(ifccParser::MultAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::mul, TYPE_INT, {lhs, rhs, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitDivAssign_stmt(ifccParser::DivAssign_stmtContext *ctx)
+{
+    string lhs = ctx->VAR()->getText();
+    lhs = resolveVar(lhs);
+    if (!isDeclaredInScope(lhs))
+    {
+        cerr << "error: variable '" << lhs << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string rhs = any_cast<string>(visit(ctx->expr()));
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::div, TYPE_INT, {lhs, rhs, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, lhs});
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitPreAdd_stmt(ifccParser::PreAdd_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    var = resolveVar(var);
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, one, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, var});
+    return var;
+}
+
+antlrcpp::Any IRVisitor::visitPreMinus_stmt(ifccParser::PreMinus_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    var = resolveVar(var);
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, one, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, var});
+    return var;
+}
+
+antlrcpp::Any IRVisitor::visitPostAdd_stmt(ifccParser::PostAdd_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    var = resolveVar(var);
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    string old_val = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {var, old_val});
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::add, TYPE_INT, {var, one, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, var});
+    return old_val;
+}
+
+antlrcpp::Any IRVisitor::visitPostMinus_stmt(ifccParser::PostMinus_stmtContext *ctx)
+{
+    string var = ctx->VAR()->getText();
+    var = resolveVar(var);
+    if (!isDeclaredInScope(var))
+    {
+        cerr << "error: variable '" << var << "' used before declaration\n";
+        success = false;
+        return 0;
+    }
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string tmp = cfg->create_new_tempvar(TYPE_INT);
+    string old_val = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {var, old_val});
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::sub, TYPE_INT, {var, one, tmp});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {tmp, var});
+    return old_val;
 }
 
 antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext *ctx)
@@ -236,26 +409,49 @@ antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext
     return 0;
 }
 
+//Return: maj du return stmt
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    string retVal;
-    if (ctx->expr() != nullptr)
+    if (currentReturnType == TYPE_VOID)
     {
-        retVal = any_cast<string>(visit(ctx->expr()));
-        if (cfg->get_var_type(retVal) != TYPE_INT)
+        if (ctx->expr() != nullptr)
         {
-            cerr << "error: function '" << currentFunction << "' returns int, got pointer\n";
-            success = false;
+            // Evaluate expression for potential side effects, but return as void.
+            visit(ctx->expr());
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
+        }
+        else
+        {
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
         }
     }
-    else
+    else 
     {
-        retVal = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "0"});
+        string retVal;
+        if (ctx->expr() != nullptr)
+        {
+            retVal = any_cast<string>(visit(ctx->expr()));
+            Type retType = cfg->get_var_type(retVal);
+            if (retType != TYPE_INT)
+            {
+                cerr << "error: return type mismatch in function '" << currentFunction
+                     << "': expected " << typeToString(currentReturnType)
+                     << ", got " << typeToString(retType) << "\n";
+                success = false;
+            }
+        }
+        else
+        {
+           
+            cerr << "warning: function '" << currentFunction
+                 << "' declared int but 'return' has no value; using 41\n";
+            retVal = cfg->create_new_tempvar(TYPE_INT);
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "41"});
+        }
+        cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
     }
-    cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
-    cfg->current_bb->exit_true = returnBB;
 
+    cfg->current_bb->exit_true = returnBB;
     BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
     cfg->add_bb(dead);
     cfg->current_bb = dead;
@@ -335,6 +531,89 @@ antlrcpp::Any IRVisitor::visitEqneq(ifccParser::EqneqContext *ctx)
     {
         cfg->current_bb->add_IRInstr(IRInstr::cmp_ne, TYPE_INT, {lhs, rhs, dst});
     }
+    return dst;
+}
+
+
+antlrcpp::Any IRVisitor::visitAndCond(ifccParser::AndCondContext *ctx)
+{
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    
+    // Crear bloques
+    BasicBlock *evalRhs_BB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *after_BB = new BasicBlock(cfg, cfg->new_BB_name());
+    
+    cfg->add_bb(evalRhs_BB);
+    cfg->add_bb(after_BB);
+    
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string zero = cfg->create_new_tempvar(TYPE_INT);
+    
+    // Asignar 0 al resultado por defecto (para cuando lhs sea false)
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {zero, dst});
+    
+    // Si lhs != 0, ir a evaluar rhs; si no, ir al final
+    cfg->current_bb->test_var_name = lhs;
+    cfg->current_bb->exit_true = evalRhs_BB;
+    cfg->current_bb->exit_false = after_BB;
+    
+    // Bloque de evaluación de rhs
+    cfg->current_bb = evalRhs_BB;
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
+    
+    // Convertir rhs a booleano (0 o 1)
+    string rhs_bool = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::cmp_ne, TYPE_INT, {rhs, zero, rhs_bool});
+    
+    // dst = rhs_bool
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs_bool, dst});
+    cfg->current_bb->exit_true = after_BB;
+    
+    // Bloque after
+    cfg->current_bb = after_BB;
+    return dst;
+}
+
+antlrcpp::Any IRVisitor::visitOrCond(ifccParser::OrCondContext *ctx)
+{
+    string lhs = any_cast<string>(visit(ctx->expr(0)));
+    
+    // Crear bloques
+    BasicBlock *evalRhs_BB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *after_BB = new BasicBlock(cfg, cfg->new_BB_name());
+    
+    cfg->add_bb(evalRhs_BB);
+    cfg->add_bb(after_BB);
+    
+    string dst = cfg->create_new_tempvar(TYPE_INT);
+    string one = cfg->create_new_tempvar(TYPE_INT);
+    string zero = cfg->create_new_tempvar(TYPE_INT);
+    
+    // Asignar 1 al resultado por defecto (para cuando lhs sea true)
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {one, "1"});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {one, dst});
+    
+    // Si lhs == 0, ir a evaluar rhs; si no, ir al final (lhs es true, resultado es 1)
+    cfg->current_bb->test_var_name = lhs;
+    cfg->current_bb->exit_true = after_BB;
+    cfg->current_bb->exit_false = evalRhs_BB;
+    
+    // Bloque de evaluación de rhs
+    cfg->current_bb = evalRhs_BB;
+    string rhs = any_cast<string>(visit(ctx->expr(1)));
+    
+    // Convertir rhs a booleano (0 o 1)
+    string rhs_bool = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
+    cfg->current_bb->add_IRInstr(IRInstr::cmp_ne, TYPE_INT, {rhs, zero, rhs_bool});
+    
+    // dst = rhs_bool
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs_bool, dst});
+    cfg->current_bb->exit_true = after_BB;
+    
+    // Bloque after
+    cfg->current_bb = after_BB;
     return dst;
 }
 
@@ -418,6 +697,7 @@ antlrcpp::Any IRVisitor::visitAddrOfVar(ifccParser::AddrOfVarContext *ctx)
 antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
     string name = ctx->VAR()->getText();
+    name = resolveVar(name);
     if (!isDeclaredInScope(name))
     {
         cerr << "error: variable '" << name << "' used before declaration in function '"
@@ -572,8 +852,8 @@ antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext *ctx)
 
 antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {
-    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *condBB  = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *bodyBB  = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
 
     cfg->add_bb(condBB);
@@ -585,16 +865,153 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
     cfg->current_bb = condBB;
     string cond = any_cast<string>(visit(ctx->expr()));
     condBB->test_var_name = cond;
-    condBB->exit_true = bodyBB;
+    condBB->exit_true  = bodyBB;
     condBB->exit_false = afterBB;
+
+    breakStack.push_back(afterBB);
+    continueStack.push_back(condBB);
+    loopDepth++;
 
     cfg->current_bb = bodyBB;
     visit(ctx->block());
-    if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
+    if (cfg->current_bb->exit_true  == nullptr &&
+        cfg->current_bb->exit_false == nullptr)
     {
         cfg->current_bb->exit_true = condBB;
     }
 
+    loopDepth--;
+    breakStack.pop_back();
+    continueStack.pop_back();
+
+    cfg->current_bb = afterBB;
+    return 0;
+}
+
+
+antlrcpp::Any IRVisitor::visitBreak_stmt(ifccParser::Break_stmtContext *ctx)
+{
+    if (loopDepth == 0)
+    {
+        cerr << "error: 'break' outside of loop or switch\n";
+        success = false;
+        return 0;
+    }
+    cfg->current_bb->exit_true = breakStack.back();
+
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitContinue_stmt(ifccParser::Continue_stmtContext *ctx)
+{
+    if (loopDepth == 0 || continueStack.empty())
+    {
+        cerr << "error: 'continue' outside of loop\n";
+        success = false;
+        return 0;
+    }
+    cfg->current_bb->exit_true = continueStack.back();
+
+    BasicBlock *dead = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(dead);
+    cfg->current_bb = dead;
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitSwitch_stmt(ifccParser::Switch_stmtContext *ctx)
+{
+    // evaluate the switch expression
+    string switchVal = any_cast<string>(visit(ctx->expr()));
+
+    BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+    cfg->add_bb(afterBB);
+
+    // break inside any case jumps to afterBB
+    breakStack.push_back(afterBB);
+    loopDepth++;
+
+    auto cases   = ctx->case_clause();
+    auto defClause = ctx->default_clause(); // nullable
+
+    // create all body blocks upfront
+    vector<BasicBlock*> bodyBlocks;
+    for (int i = 0; i < (int)cases.size(); i++)
+    {
+        BasicBlock *bb = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(bb);
+        bodyBlocks.push_back(bb);
+    }
+
+    BasicBlock *defaultBB = nullptr;
+    if (defClause != nullptr)
+    {
+        defaultBB = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(defaultBB);
+    }
+
+    // chain of comparisons from current block
+    for (int i = 0; i < (int)cases.size(); i++)
+    {
+        string constVal = cases[i]->CONST()->getText();
+
+        // cmp switchVal == constVal
+        string cmp = cfg->create_new_tempvar(TYPE_INT);
+        string k   = cfg->create_new_tempvar(TYPE_INT);
+        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {k, constVal});
+        cfg->current_bb->add_IRInstr(IRInstr::cmp_eq,  TYPE_INT, {switchVal, k, cmp});
+
+        cfg->current_bb->test_var_name = cmp;
+        cfg->current_bb->exit_true  = bodyBlocks[i];
+
+        // false -> next comparison block
+        BasicBlock *nextCmp = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(nextCmp);
+        cfg->current_bb->exit_false = nextCmp;
+        cfg->current_bb = nextCmp;
+    }
+
+    // last comparison block: jump to default or after
+    cfg->current_bb->exit_true = (defaultBB != nullptr) ? defaultBB : afterBB;
+
+    // generate each case body
+    for (int i = 0; i < (int)cases.size(); i++)
+    {
+        cfg->current_bb = bodyBlocks[i];
+        for (auto s : cases[i]->stmt())
+            visit(s);
+
+        // fallthrough: if no break was hit, go to next case body (or afterBB)
+        if (cfg->current_bb->exit_true  == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
+        {
+            if (i + 1 < (int)bodyBlocks.size())
+                cfg->current_bb->exit_true = bodyBlocks[i + 1];
+            else if (defaultBB != nullptr)
+                cfg->current_bb->exit_true = defaultBB;
+            else
+                cfg->current_bb->exit_true = afterBB;
+        }
+    }
+
+    // generate default body
+    if (defaultBB != nullptr)
+    {
+        cfg->current_bb = defaultBB;
+        for (auto s : defClause->stmt())
+            visit(s);
+
+        if (cfg->current_bb->exit_true  == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
+        {
+            cfg->current_bb->exit_true = afterBB;
+        }
+    }
+
+    loopDepth--;
+    breakStack.pop_back();
     cfg->current_bb = afterBB;
     return 0;
 }

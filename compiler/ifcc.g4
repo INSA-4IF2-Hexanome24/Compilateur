@@ -9,8 +9,14 @@ prog
   ;
 
 function_def
-  : 'int' VAR '(' param_list? ')' block
+  : type_spec VAR '(' param_list? ')' block
   ;
+
+type_spec
+  : 'int'
+  | 'void'
+  ;
+
 
 param_list
   : param (',' param)*
@@ -33,6 +39,9 @@ stmt
   | block
   | while_stmt
   | return_stmt
+  | break_stmt       
+  | continue_stmt    
+  | switch_stmt
   ;
 
 expr_stmt
@@ -57,7 +66,15 @@ var_decl
   ;
 
 assign_stmt
-  : VAR '=' expr ';'
+  : VAR '=' expr ';'  # assignSimple_stmt
+  | VAR '+=' expr ';' # addAssign_stmt
+  | VAR '-=' expr ';' # minusAssign_stmt
+  | VAR '*=' expr ';' # multAssign_stmt
+  | VAR '/=' expr ';' # divAssign_stmt
+  | '--' VAR ';' # preMinus_stmt
+  | '++' VAR ';' # preAdd_stmt
+  | VAR '--' ';' # postMinus_stmt
+  | VAR '++' ';' # postAdd_stmt
   ;
 
 ptr_assign_stmt
@@ -81,6 +98,26 @@ while_stmt
   : 'while' '(' expr ')' block
   ;
 
+break_stmt
+  : 'break' ';'
+  ;
+
+continue_stmt
+  : 'continue' ';'
+  ;
+
+switch_stmt
+  : 'switch' '(' expr ')' '{' case_clause* default_clause? '}'
+  ;
+
+case_clause
+  : 'case' CONST ':' stmt*
+  ;
+
+default_clause
+  : 'default' ':' stmt*
+  ;
+
 
 // ----------------------
 // Expressions
@@ -102,6 +139,8 @@ expr
   | expr '&' expr                      # band
   | expr '^' expr                      # bxor
   | expr '|' expr                      # bor 
+  | expr '&&' expr                     # AndCond
+  | expr '||' expr                     # OrCond
   | '(' expr ')'                       # parens
   | CONST                              # constExpr
   | '&' VAR                            # addrOfVar
