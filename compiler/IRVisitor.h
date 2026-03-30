@@ -15,27 +15,25 @@ public:
     std::map<std::string, int> functionArity;
     std::map<std::string, std::vector<Type>> functionParamTypes;
     std::set<std::string> currentSymbols;
-    std::vector<std::set<std::string>> scopeStack;
+    std::vector<std::pair<int,int>> scopeStack;  // (mon numéro, nb enfants ouverts)
     std::string currentFunction;
-    
+
     bool success = true;
 
-     std::map<std::string, int> symbolTable;
+    std::map<std::string, int> symbolTable;
 
     std::vector<BasicBlock*> breakStack;
     std::vector<BasicBlock*> continueStack;
 
     int labelCount = 0;
-    int numMaxTemps;
 
     CFG *cfg = nullptr;
     BasicBlock *returnBB = nullptr;
 
-    
-
     IRVisitor();
-    std::string currentPrefix();
+    std::string getPrefix();
     std::string resolveVar(std::string var);
+    bool isDeclaredInCurrentScope(const std::string &name) const;
 
     virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
     virtual antlrcpp::Any visitFunction_def(
@@ -103,5 +101,4 @@ public:
 
 private:
     Type declaredType(const std::string &name) const;
-    bool isDeclaredInScope(const std::string &name) const;
 };
