@@ -140,6 +140,7 @@ class CFG {
 
 	// symbol table methods
 	void add_to_symbol_table(string name, Type t);
+	void add_tableau_to_symbol_table(string name, Type t, int taille);
 	void set_param_order(const vector<string>& params);
 	bool has_symbol(const string& name) const;
 	string create_new_tempvar(Type t);

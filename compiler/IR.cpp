@@ -334,6 +334,13 @@ void CFG::add_to_symbol_table(string name, Type t)
     }
 }
 
+void CFG::add_tableau_to_symbol_table(string name, Type t, int taille)
+{
+    SymbolType[name] = t; 
+    SymbolIndex[name] = nextFreeSymbolIndex; 
+    nextFreeSymbolIndex -= 4*taille;
+}
+
 void CFG::set_param_order(const vector<string>& params)
 {
     paramOrder = params;

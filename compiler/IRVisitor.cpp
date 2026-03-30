@@ -5,127 +5,47 @@
 #include <string>
 #include <vector>
 
+using std::string;
+using std::vector;
+
 using namespace std;
 
-IRVisitor::IRVisitor() = default;
-
-string IRVisitor::currentPrefix()
+IRVisitor::IRVisitor()
 {
-    return "";
+    numMaxTemps = 0;
 }
 
-string IRVisitor::resolveVar(string var)
+IRVisitor::IRVisitor(const std::map<std::string, int> &table, int numMaxTemps)
 {
-    return var;
-}
-
-Type IRVisitor::declaredType(const string &name) const
-{
-    return cfg->get_var_type(name);
-}
-
-bool IRVisitor::isDeclaredInScope(const string &name) const
-{
-    for (auto it = scopeStack.rbegin(); it != scopeStack.rend(); ++it)
-    {
-        if (it->count(name))
-        {
-            return true;
-        }
-    }
-    return false;
+    symbolTable = table;
+    this->numMaxTemps = numMaxTemps;
 }
 
 antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
 {
-    // Predeclared external functions.
-    functionArity["getchar"] = 0;
-    functionArity["putchar"] = 1;
-    functionParamTypes["getchar"] = {};
-    functionParamTypes["putchar"] = {TYPE_INT};
+    cfg = new CFG(nullptr);
 
-    for (auto f : ctx->function_def())
+    for (const auto &it : symbolTable)
     {
-        string name = f->VAR()->getText();
-        if (functionArity.count(name))
+        const string &name = it.first;
+        if (name.rfind("_temp", 0) == 0)
         {
-            cerr << "error: function '" << name << "' declared more than once\n";
-            success = false;
             continue;
         }
-
-        int arity = 0;
-        if (f->param_list() != nullptr)
-        {
-            arity = static_cast<int>(f->param_list()->param().size());
-        }
-        functionArity[name] = arity;
-
-        vector<Type> paramTypes;
-        if (f->param_list() != nullptr)
-        {
-            for (auto p : f->param_list()->param())
-            {
-                bool isPtr = p->getText().find('*') != string::npos;
-                paramTypes.push_back(isPtr ? TYPE_PTR : TYPE_INT);
-            }
-        }
-        functionParamTypes[name] = paramTypes;
+        cfg->add_to_symbol_table(name, TYPE_INT);
     }
 
-    if (!functionArity.count("main"))
-    {
-        cerr << "error: missing required 'main' function\n";
-        success = false;
-        return 0;
-    }
-
-    for (auto f : ctx->function_def())
-    {
-        visit(f);
-    }
-
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
-{
-    currentFunction = ctx->VAR()->getText();
-    cfg = new CFG(currentFunction);
-    currentSymbols.clear();
-    scopeStack.clear();
-    scopeStack.push_back({});
-
-    vector<string> params;
-    if (ctx->param_list() != nullptr)
-    {
-        for (auto p : ctx->param_list()->param())
-        {
-            string pname = p->VAR()->getText();
-            Type ptype = (p->getText().find('*') != string::npos) ? TYPE_PTR : TYPE_INT;
-            if (currentSymbols.count(pname))
-            {
-                cerr << "error: parameter '" << pname << "' declared more than once in function '"
-                     << currentFunction << "'\n";
-                success = false;
-                continue;
-            }
-            currentSymbols.insert(pname);
-            scopeStack.back().insert(pname);
-            cfg->add_to_symbol_table(pname, ptype);
-            params.push_back(pname);
-        }
-    }
-    cfg->set_param_order(params);
-
-    BasicBlock *entry = new BasicBlock(cfg, currentFunction + "_entry");
+    BasicBlock *entry = new BasicBlock(cfg, "entry");
     cfg->add_bb(entry);
     cfg->current_bb = entry;
 
-    returnBB = new BasicBlock(cfg, currentFunction + "_ret");
+    returnBB = new BasicBlock(cfg, "ret_block");
     cfg->add_bb(returnBB);
 
-    visit(ctx->block());
+    for (auto s : ctx->stmt())
+    {
+        visit(s);
+    }
 
     if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
     {
@@ -135,10 +55,7 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
         cfg->current_bb->exit_true = returnBB;
     }
 
-    if (success)
-    {
-        cfg->gen_asm(std::cout);
-    }
+    cfg->gen_asm(std::cout);
     return 0;
 }
 
@@ -152,118 +69,28 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 {
     for (auto v : ctx->var_decl_list()->var_decl())
     {
-        string lhs = v->VAR()->getText();
-        Type lhsType = (v->getText().rfind("*", 0) == 0) ? TYPE_PTR : TYPE_INT;
-        if (!scopeStack.empty() && scopeStack.back().count(lhs))
-        {
-            cerr << "error: variable '" << lhs << "' declared more than once in function '"
-                 << currentFunction << "'\n";
-            success = false;
-            continue;
-        }
-
-        currentSymbols.insert(lhs);
-        if (!scopeStack.empty())
-        {
-            scopeStack.back().insert(lhs);
-        }
-        cfg->add_to_symbol_table(lhs, lhsType);
-
         if (v->expr() != nullptr)
         {
             string rhs = any_cast<string>(visit(v->expr()));
-            Type rhsType = cfg->get_var_type(rhs);
-            if (lhsType != rhsType)
-            {
-                cerr << "error: type mismatch in initialization of '" << lhs
-                     << "' in function '" << currentFunction << "'\n";
-                success = false;
-            }
-            else
-            {
-                cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
-            }
+            string lhs = currentPrefix() + v->VAR()->getText();
+            cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
         }
     }
     return 0;
 }
 
-antlrcpp::Any IRVisitor::visitAssign_stmt(ifccParser::Assign_stmtContext *ctx)
+antlrcpp::Any IRVisitor::visitSimpleAssign(ifccParser::SimpleAssignContext *ctx)
 {
+    string rhs = any_cast<string>(visit(ctx->expr()));
     string lhs = ctx->VAR()->getText();
     lhs = resolveVar(lhs);
-    if (!isDeclaredInScope(lhs))
-    {
-        cerr << "error: variable '" << lhs << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    Type lhsType = declaredType(lhs);
-    string rhs = any_cast<string>(visit(ctx->expr()));
-    Type rhsType = cfg->get_var_type(rhs);
-    if (lhsType != rhsType)
-    {
-        cerr << "error: type mismatch in assignment to '" << lhs
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
-    return 0;
-}
-
-antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext *ctx)
-{
-    string ptrName = ctx->VAR()->getText();
-    if (!isDeclaredInScope(ptrName))
-    {
-        cerr << "error: variable '" << ptrName << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    if (declaredType(ptrName) != TYPE_PTR)
-    {
-        cerr << "error: cannot dereference non-pointer '" << ptrName
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    string rhs = any_cast<string>(visit(ctx->expr()));
-    if (cfg->get_var_type(rhs) != TYPE_INT)
-    {
-        cerr << "error: cannot store non-int through pointer '" << ptrName
-             << "' in function '" << currentFunction << "'\n";
-        success = false;
-        return 0;
-    }
-
-    cfg->current_bb->add_IRInstr(IRInstr::wmem, TYPE_INT, {ptrName, rhs});
+    cfg->current_bb->add_IRInstr(IRInstr::copy, TYPE_INT, {rhs, lhs});
     return 0;
 }
 
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    string retVal;
-    if (ctx->expr() != nullptr)
-    {
-        retVal = any_cast<string>(visit(ctx->expr()));
-        if (cfg->get_var_type(retVal) != TYPE_INT)
-        {
-            cerr << "error: function '" << currentFunction << "' returns int, got pointer\n";
-            success = false;
-        }
-    }
-    else
-    {
-        retVal = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "0"});
-    }
+    string retVal = any_cast<string>(visit(ctx->expr()));
     cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
     cfg->current_bb->exit_true = returnBB;
 
@@ -408,109 +235,25 @@ antlrcpp::Any IRVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
     return dst;
 }
 
-antlrcpp::Any IRVisitor::visitAddrOfVar(ifccParser::AddrOfVarContext *ctx)
-{
-    string name = ctx->VAR()->getText();
-    if (!isDeclaredInScope(name))
-    {
-        cerr << "error: variable '" << name << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        string zero = cfg->create_new_tempvar(TYPE_PTR);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
-        return zero;
-    }
-
-    string dst = cfg->create_new_tempvar(TYPE_PTR);
-    cfg->current_bb->add_IRInstr(IRInstr::addrof, TYPE_PTR, {dst, name});
-    return dst;
-}
-
 antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
-    string name = ctx->VAR()->getText();
-    name = resolveVar(name);
-    if (!isDeclaredInScope(name))
-    {
-        cerr << "error: variable '" << name << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
-        string zero = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
-        return zero;
-    }
-    return name;
-}
-
-antlrcpp::Any IRVisitor::visitDerefExpr(ifccParser::DerefExprContext *ctx)
-{
-    string ptr = any_cast<string>(visit(ctx->expr()));
-    if (cfg->get_var_type(ptr) != TYPE_PTR)
-    {
-        cerr << "error: cannot dereference non-pointer in function '" << currentFunction << "'\n";
-        success = false;
-        string zero = cfg->create_new_tempvar(TYPE_INT);
-        cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
-        return zero;
-    }
-
-    string dst = cfg->create_new_tempvar(TYPE_INT);
-    cfg->current_bb->add_IRInstr(IRInstr::rmem, TYPE_INT, {dst, ptr});
-    return dst;
+    std::string name = ctx->VAR()->getText();
+    return resolveVar(name);
 }
 
 antlrcpp::Any IRVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx)
 {
-    string fname = ctx->VAR()->getText();
-    int argCount = 0;
-    if (ctx->arg_list() != nullptr)
-    {
-        argCount = static_cast<int>(ctx->arg_list()->expr().size());
-    }
-
-    if (!functionArity.count(fname))
-    {
-        cerr << "error: call to unknown function '" << fname << "'\n";
-        success = false;
-    }
-    else if (functionArity[fname] != argCount)
-    {
-        cerr << "error: function '" << fname << "' expects " << functionArity[fname]
-             << " argument(s), got " << argCount << "\n";
-        success = false;
-    }
-
-    if (argCount > 6)
-    {
-        cerr << "error: functions with more than 6 arguments are not supported yet\n";
-        success = false;
-    }
-
     vector<string> params;
-    params.push_back(fname);
+    params.push_back(ctx->VAR()->getText());
 
     string dst = cfg->create_new_tempvar(TYPE_INT);
     params.push_back(dst);
 
     if (ctx->arg_list() != nullptr)
     {
-        int i = 0;
         for (auto e : ctx->arg_list()->expr())
         {
-            string arg = any_cast<string>(visit(e));
-            params.push_back(arg);
-            if (functionParamTypes.count(fname) && i < static_cast<int>(functionParamTypes[fname].size()))
-            {
-                Type expected = functionParamTypes[fname][i];
-                Type got = cfg->get_var_type(arg);
-                if (expected != got)
-                {
-                    cerr << "error: type mismatch for argument " << (i + 1)
-                         << " in call to '" << fname << "'\n";
-                    success = false;
-                }
-            }
-            i++;
+            params.push_back(any_cast<string>(visit(e)));
         }
     }
 
@@ -522,48 +265,58 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
     string cond = any_cast<string>(visit(ctx->expr()));
 
-    BasicBlock *thenBB  = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *condBB = cfg->current_bb;
+    BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name());
     cfg->add_bb(thenBB);
-    cfg->add_bb(afterBB);
 
-    cfg->current_bb->test_var_name = cond;
+    BasicBlock *elseBB = nullptr;
+    BasicBlock *afterBB = nullptr;
+
+    condBB->test_var_name = cond;
 
     if (ctx->block().size() > 1)
     {
-        BasicBlock *elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+        elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+        afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+
         cfg->add_bb(elseBB);
+        cfg->add_bb(afterBB);
 
-        cfg->current_bb->exit_true  = thenBB;
-        cfg->current_bb->exit_false = elseBB;
+        condBB->exit_true = thenBB;
+        condBB->exit_false = elseBB;
 
+        // then
         cfg->current_bb = thenBB;
         visit(ctx->block(0));
-        BasicBlock *lastThenBB = cfg->current_bb;
-        if (lastThenBB->exit_true == nullptr && lastThenBB->exit_false == nullptr)
+        if (cfg->current_bb->exit_true == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
         {
-            lastThenBB->exit_true = afterBB;
+            cfg->current_bb->exit_true = afterBB;
         }
 
+        // else
         cfg->current_bb = elseBB;
         visit(ctx->block(1));
-        BasicBlock *lastElseBB = cfg->current_bb;
-        if (lastElseBB->exit_true == nullptr && lastElseBB->exit_false == nullptr)
+        if (cfg->current_bb->exit_true == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
         {
-            lastElseBB->exit_true = afterBB;
+            cfg->current_bb->exit_true = afterBB;
         }
     }
     else
     {
-        cfg->current_bb->exit_true  = thenBB;
-        cfg->current_bb->exit_false = afterBB;
+        afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+        cfg->add_bb(afterBB);
+
+        condBB->exit_true = thenBB;
+        condBB->exit_false = afterBB;
 
         cfg->current_bb = thenBB;
         visit(ctx->block(0));
-        BasicBlock *lastThenBB = cfg->current_bb;
-        if (lastThenBB->exit_true == nullptr && lastThenBB->exit_false == nullptr)
+        if (cfg->current_bb->exit_true == nullptr &&
+            cfg->current_bb->exit_false == nullptr)
         {
-            lastThenBB->exit_true = afterBB;
+            cfg->current_bb->exit_true = afterBB;
         }
     }
 
@@ -573,12 +326,33 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext *ctx)
 {
-    scopeStack.push_back({});
+    pair<int, int> *parent = nullptr; // pointeur, null si pas de parent
+    pair<int, int> enfant;
+
+    if (!scopeStack.empty())
+    {
+        parent = &scopeStack.back();
+        enfant = {parent->second, 0};
+    }
+    else
+    {
+        enfant = {0, 0};
+    }
+
+    scopeStack.push_back(enfant);
+
     for (auto s : ctx->stmt())
     {
         visit(s);
     }
+
     scopeStack.pop_back();
+
+    if (parent != nullptr)
+    {
+        parent->second++;
+    }
+
     return 0;
 }
 
@@ -602,11 +376,94 @@ antlrcpp::Any IRVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 
     cfg->current_bb = bodyBB;
     visit(ctx->block());
-    if (cfg->current_bb->exit_true == nullptr && cfg->current_bb->exit_false == nullptr)
+    if (bodyBB->exit_true == nullptr && bodyBB->exit_false == nullptr)
     {
-        cfg->current_bb->exit_true = condBB;
+        bodyBB->exit_true = condBB;
     }
 
     cfg->current_bb = afterBB;
     return 0;
+}
+
+antlrcpp::Any IRVisitor::visitTab(ifccParser::TabContext *ctx)
+{
+    std::string nomTab = ctx->VAR()->getText();
+    int taille = stoi(ctx->CONST()->getText()); // stoi = string to int
+    cfg->add_tableau_to_symbol_table(nomTab, TYPE_INT, taille);
+    return 0;
+}
+
+antlrcpp::Any IRVisitor::visitArrayRead(ifccParser::ArrayReadContext *ctx)
+{
+    std::string nomTab = ctx->VAR()->getText();
+    std::string indice = any_cast<string>(visit(ctx->expr()));
+    std::string addrTab = cfg->create_new_tempvar(TYPE_PTR);
+    cfg->current_bb->add_IRInstr(IRInstr::addrof, TYPE_PTR, {addrTab, nomTab}); //mets l'adresse du tableau dans addrTab
+    
+    std::string quatre = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {quatre, "4"}); // charge 4
+
+    std::string quatrei = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::mul,TYPE_INT,{quatre, indice, quatrei}); // charge 4*i
+
+    std::string adresseFinal = cfg->create_new_tempvar(TYPE_PTR);
+    cfg->current_bb->add_IRInstr(IRInstr::add,TYPE_INT,{quatrei, addrTab, adresseFinal}); // charge 4*i + adresse tableau
+
+    std::string dst = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::rmem,TYPE_INT,{dst, adresseFinal});
+
+    return dst;
+}
+
+antlrcpp::Any IRVisitor::visitArrayWrite(ifccParser::ArrayWriteContext *ctx)
+{
+    std::string nomTab = ctx->VAR()->getText();
+    std::string indice = any_cast<string>(visit(ctx->expr(0)));
+
+    std::string rvalue = any_cast<string>(visit(ctx->expr(1)));
+
+    std::string addrTab = cfg->create_new_tempvar(TYPE_PTR);
+    cfg->current_bb->add_IRInstr(IRInstr::addrof, TYPE_PTR, {addrTab, nomTab}); //mets l'adresse du tableau dans addrTab
+    
+    std::string quatre = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {quatre, "4"}); // charge 4
+
+    std::string quatrei = cfg->create_new_tempvar(TYPE_INT);
+    cfg->current_bb->add_IRInstr(IRInstr::mul,TYPE_INT,{quatre, indice, quatrei}); // charge 4*i
+
+    std::string adresseFinal = cfg->create_new_tempvar(TYPE_PTR);
+    cfg->current_bb->add_IRInstr(IRInstr::add,TYPE_INT,{quatrei, addrTab, adresseFinal}); // charge 4*i + adresse tableau
+
+    cfg->current_bb->add_IRInstr(IRInstr::wmem,TYPE_INT,{rvalue,adresseFinal});
+
+    return 0;
+}
+
+std::string IRVisitor::currentPrefix()
+{
+    std::vector<pair<int, int>>::iterator it;
+    std::string resultat = "";
+    for (it = scopeStack.begin(); it != scopeStack.end(); it++)
+    {
+        resultat += std::to_string(it->first) + "-";
+    }
+    return resultat;
+}
+
+std::string IRVisitor::resolveVar(std::string var)
+{
+    // essaie du scope le plus profond au plus global
+    for (int i = scopeStack.size(); i >= 0; i--)
+    {
+        // construire le préfixe avec les i premiers éléments de scopeStack
+        std::string prefix = "";
+        for (int j = 0; j < i; j++)
+        {
+            prefix += std::to_string(scopeStack[j].first) + "-";
+        }
+        std::string candidate = prefix + var;
+        if (cfg->has_symbol(candidate))
+            return candidate;
+    }
+    return var; // pas trouvé
 }

@@ -45,10 +45,15 @@ arg_list
 
 decl_stmt
   : 'int' var_decl_list ';'
+  | tab
   ;
 
 var_decl_list
   : var_decl (',' var_decl)*
+  ;
+
+tab
+  : 'int' VAR '[' CONST ']' ';'
   ;
 
 var_decl
@@ -57,7 +62,8 @@ var_decl
   ;
 
 assign_stmt
-  : VAR '=' expr ';'
+  : VAR '=' expr ';'              # SimpleAssign
+  | VAR '[' expr ']' '=' expr ';' # ArrayWrite
   ;
 
 ptr_assign_stmt
@@ -105,8 +111,9 @@ expr
   | '(' expr ')'                       # parens
   | CONST                              # constExpr
   | '&' VAR                            # addrOfVar
-  | VAR                                # varExpr
   | VAR '(' arg_list? ')'              # funcCall
+  | VAR '[' expr ']'                   # ArrayRead
+  | VAR                                # varExpr
   ;
 
 // ----------------------
