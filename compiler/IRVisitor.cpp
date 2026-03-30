@@ -408,7 +408,6 @@ antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext
     cfg->current_bb->add_IRInstr(IRInstr::wmem, TYPE_INT, {ptrName, rhs});
     return 0;
 }
-
 //Return: maj du return stmt
 antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
@@ -416,16 +415,20 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
     {
         if (ctx->expr() != nullptr)
         {
-            // Evaluate expression for potential side effects, but return as void.
-            visit(ctx->expr());
-            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
+            cerr << "error: function '" << currentFunction
+                << "' is declared void but returns a value\n";
+            success = true;                                         
+            string dst = cfg->create_new_tempvar(TYPE_INT);    
+            //retour par default     
+            cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {dst, "41"}); 
+            cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {dst}); 
         }
         else
         {
             cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_VOID, {});
         }
     }
-    else 
+    else // TYPE_INT
     {
         string retVal;
         if (ctx->expr() != nullptr)
@@ -442,10 +445,13 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
         }
         else
         {
-           
-            cerr << "warning: function '" << currentFunction
-                 << "' declared int but 'return' has no value; using 41\n";
+            // return; sans valeur dans une fonction int : ERREUR
+            cerr << "error: function '" << currentFunction
+                 << "' declared int but 'return' has no value\n";
+            success = true;
+            // On génère quand même un retVal pour ne pas crasher la suite
             retVal = cfg->create_new_tempvar(TYPE_INT);
+            //retour par default  
             cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {retVal, "41"});
         }
         cfg->current_bb->add_IRInstr(IRInstr::ret, TYPE_INT, {retVal});
@@ -457,6 +463,7 @@ antlrcpp::Any IRVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
     cfg->current_bb = dead;
     return 0;
 }
+
 
 antlrcpp::Any IRVisitor::visitMultdivmod(ifccParser::MultdivmodContext *ctx)
 {
