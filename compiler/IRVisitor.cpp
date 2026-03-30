@@ -25,6 +25,15 @@ string IRVisitor::currentPrefix()
 
 string IRVisitor::resolveVar(string var)
 {
+    // Vérifie si la variable est déclarée via une méthode publique de CFG
+    if (!cfg->has_symbol(var)) {
+        cerr << "Erreur : variable '" << var << "' non déclarée\n";
+        success = false;
+        // Crée une variable temporaire pour continuer la compilation
+        var = cfg->create_new_tempvar(TYPE_INT);
+    }
+
+    // Retourne le nom interne utilisable pour l'IR et l'assembleur
     return var;
 }
 
