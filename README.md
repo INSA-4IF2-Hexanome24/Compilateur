@@ -1,6 +1,7 @@
 # Mini-compilateur C (ifcc)
 
 github: git@github.com:INSA-4IF2-Hexanome24/Compilateur.git
+
 Ce projet contient un mini-compilateur pour un sous-ensemble du langage C. Il est développé en C++ avec ANTLR4 pour l'analyse syntaxique et utilise une visite en deux passes :
 
 1. **Analyse sémantique et table des symboles** via `SymbolTableVisitor`.
