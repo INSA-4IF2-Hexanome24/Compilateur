@@ -53,6 +53,10 @@ generated/ifccParser.cpp: ifcc.g4
 
 ##########################################
 # view the parse tree in a graphical window
+# run tests
+
+test: ifcc
+	python3 ifcc-test.py
 
 # Usage: `make gui FILE=path/to/your/file.c`
 FILE ?= ../tests/testfiles/1_return42.c
