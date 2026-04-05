@@ -87,7 +87,38 @@ README.md                   # ce document
 
 Le répertoire `testfiles/` contient des programmes C pour tester les différentes fonctionnalités implémentées par notre compilateur. Le script `ifcc-test.py` automatise l'exécution des cas de test et la vérification des résultats.
 
+## Présentation de l’hexanôme
 
----
+### L’équipe projet est composée de sept membres :
 
-Ce compilateur est un bon point de départ pour ajouter des fonctionalités comme les boucles, les fonctions ou les tableaux. La structure actuelle facilite l'extension en ajoutant de nouvelles régles dans la grammaire et en adaptant les visiteurs associés.
+Karim Madrane
+Martín Vásquez
+Josué Vega
+Rida Bindech
+Juan José Díaz
+Ewan Garoux
+Liam Le Touze
+Organisation et répartition des rôles
+
+  Afin d’assurer le bon déroulement du projet, certains rôles spécifiques ont été attribués :
+
+    Juan José Díaz : Chef de projet
+      Coordination globale du projet
+      Organisation des tâches et suivi de l’avancement
+    Ewan Garoux : Responsable Git
+      Gestion du dépôt Git
+      Supervision des branches et leur fusion.
+    Liam Le Touze : Responsable de la mise en commun
+      Intégration des différentes parties du projet
+      Vérification de la cohérence globale du code
+
+  Les autres membres de l’équipe ont principalement occupé un rôle de développeurs :
+  
+    Karim Madrane
+    Martín Vásquez
+    Josué Vega
+    Rida Bindech
+
+Ils ont contribué au développement des différentes fonctionnalités du compilateur, à l’implémentation des visiteurs, ainsi qu’à la réalisation et à la validation des tests.
+
+Remarque: Bien que des rôles principaux aient été définis, le travail a été réalisé de manière collaborative. Chaque membre a pu intervenir sur plusieurs aspects du projet (développement, tests, débogage), selon les besoins.
