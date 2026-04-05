@@ -87,6 +87,9 @@ README.md                   # ce document
 
 Le répertoire `testfiles/` contient des programmes C pour tester les différentes fonctionnalités implémentées par notre compilateur. Le script `ifcc-test.py` automatise l'exécution des cas de test et la vérification des résultats.
 
+Pour une éxecution rapide depuis le répertoire ./compiler vous pouvez taper:
+  make tests
+
 ## Présentation de l’hexanôme
 
 ### L’équipe projet est composée de sept membres :
