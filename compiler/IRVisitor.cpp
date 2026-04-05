@@ -15,29 +15,46 @@ IRVisitor::IRVisitor() = default;
 
 Type IRVisitor::declaredType(const string &name) const
 {
-    return cfg->get_var_type(name);}
-
-
-string IRVisitor::currentPrefix()
-{
-    return "";
+    return cfg->get_var_type(name);
 }
 
-string IRVisitor::resolveVar(string var)
+
+string IRVisitor::getPrefix()
 {
-    return var;
+    string prefix = "";
+    for (auto& p : scopeStack)
+        prefix += to_string(p.first) + "-";
+    return prefix;
 }
 
-bool IRVisitor::isDeclaredInScope(const string &name) const
+string IRVisitor::resolveVar(string name)
 {
-    for (auto it = scopeStack.rbegin(); it != scopeStack.rend(); ++it)
+    // On remonte la stack pour construire le préfixe niveau par niveau
+    // et on cherche prefix+name dans la symbol table
+    for (int i = (int)scopeStack.size(); i >= 0; i--)
     {
-        if (it->count(name))
-        {
-            return true;
-        }
+        string prefix = "";
+        for (int j = 0; j < i; j++)
+            prefix += to_string(scopeStack[j].first) + "-";
+        string fullName = prefix + name;
+        if (cfg->has_symbol(fullName))
+            return fullName;
     }
-    return false;
+    // pas trouvé
+    cerr << "error: variable '" << name << "' used before declaration in function '"
+         << currentFunction << "'\n";
+    success = false;
+    return name;
+}
+
+bool IRVisitor::isDeclaredInCurrentScope(const string &name) const
+{
+    // Vérifie uniquement dans le scope courant (pour les redéclarations)
+    string prefix = "";
+    for (auto& p : scopeStack)
+        prefix += to_string(p.first) + "-";
+    string fullName = prefix + name;
+    return cfg->has_symbol(fullName);
 }
 
 antlrcpp::Any IRVisitor::visitProg(ifccParser::ProgContext *ctx)
@@ -102,7 +119,7 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
     cfg = new CFG(currentFunction);
     currentSymbols.clear();
     scopeStack.clear();
-    scopeStack.push_back({});
+    scopeStack.push_back({0, 0}); // scope racine : numéro 0, 0 enfants pour l'instant
 
     vector<string> params;
     if (ctx->param_list() != nullptr)
@@ -111,17 +128,17 @@ antlrcpp::Any IRVisitor::visitFunction_def(ifccParser::Function_defContext *ctx)
         {
             string pname = p->VAR()->getText();
             Type ptype = (p->getText().find('*') != string::npos) ? TYPE_PTR : TYPE_INT;
-            if (currentSymbols.count(pname))
+            string fullName = getPrefix() + pname; // <-- préfixé
+            if (cfg->has_symbol(fullName))
             {
                 cerr << "error: parameter '" << pname << "' declared more than once in function '"
                      << currentFunction << "'\n";
                 success = false;
                 continue;
             }
-            currentSymbols.insert(pname);
-            scopeStack.back().insert(pname);
-            cfg->add_to_symbol_table(pname, ptype);
-            params.push_back(pname);
+            currentSymbols.insert(fullName);
+            cfg->add_to_symbol_table(fullName, ptype);
+            params.push_back(fullName);
         }
     }
     cfg->set_param_order(params);
@@ -172,7 +189,8 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
     {
         string lhs = v->VAR()->getText();
         Type lhsType = (v->getText().rfind("*", 0) == 0) ? TYPE_PTR : TYPE_INT;
-        if (!scopeStack.empty() && scopeStack.back().count(lhs))
+        string fullName = getPrefix() + lhs; // <-- préfixé
+        if (isDeclaredInCurrentScope(lhs)) // <-- vérifie dans le scope courant
         {
             cerr << "error: variable '" << lhs << "' declared more than once in function '"
                  << currentFunction << "'\n";
@@ -180,12 +198,8 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
             continue;
         }
 
-        currentSymbols.insert(lhs);
-        if (!scopeStack.empty())
-        {
-            scopeStack.back().insert(lhs);
-        }
-        cfg->add_to_symbol_table(lhs, lhsType);
+        currentSymbols.insert(fullName);
+        cfg->add_to_symbol_table(fullName, lhsType);
 
         if (v->expr() != nullptr)
         {
@@ -199,7 +213,7 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
             }
             else
             {
-                cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, lhs});
+                cfg->current_bb->add_IRInstr(IRInstr::copy, lhsType, {rhs, fullName});
             }
         }
     }
@@ -208,13 +222,9 @@ antlrcpp::Any IRVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitAssignSimple_stmt(ifccParser::AssignSimple_stmtContext *ctx)
 {
-    string lhs = ctx->VAR()->getText();
-    lhs = resolveVar(lhs);
-    if (!isDeclaredInScope(lhs))
+    string lhs = resolveVar(ctx->VAR()->getText());
+    if (!success)
     {
-        cerr << "error: variable '" << lhs << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
         return 0;
     }
 
@@ -235,12 +245,9 @@ antlrcpp::Any IRVisitor::visitAssignSimple_stmt(ifccParser::AssignSimple_stmtCon
 
 antlrcpp::Any IRVisitor::visitAddAssign_stmt(ifccParser::AddAssign_stmtContext *ctx)
 {
-    string lhs = ctx->VAR()->getText();
-    lhs = resolveVar(lhs);
-    if (!isDeclaredInScope(lhs))
+    string lhs = resolveVar(ctx->VAR()->getText());
+    if (!success)
     {
-        cerr << "error: variable '" << lhs << "' used before declaration\n";
-        success = false;
         return 0;
     }
     string rhs = any_cast<string>(visit(ctx->expr()));
@@ -254,10 +261,8 @@ antlrcpp::Any IRVisitor::visitMinusAssign_stmt(ifccParser::MinusAssign_stmtConte
 {
     string lhs = ctx->VAR()->getText();
     lhs = resolveVar(lhs);
-    if (!isDeclaredInScope(lhs))
+    if (!success)
     {
-        cerr << "error: variable '" << lhs << "' used before declaration\n";
-        success = false;
         return 0;
     }
     string rhs = any_cast<string>(visit(ctx->expr()));
@@ -271,10 +276,8 @@ antlrcpp::Any IRVisitor::visitMultAssign_stmt(ifccParser::MultAssign_stmtContext
 {
     string lhs = ctx->VAR()->getText();
     lhs = resolveVar(lhs);
-    if (!isDeclaredInScope(lhs))
+    if (!success)
     {
-        cerr << "error: variable '" << lhs << "' used before declaration\n";
-        success = false;
         return 0;
     }
     string rhs = any_cast<string>(visit(ctx->expr()));
@@ -288,10 +291,8 @@ antlrcpp::Any IRVisitor::visitDivAssign_stmt(ifccParser::DivAssign_stmtContext *
 {
     string lhs = ctx->VAR()->getText();
     lhs = resolveVar(lhs);
-    if (!isDeclaredInScope(lhs))
+    if (!success)
     {
-        cerr << "error: variable '" << lhs << "' used before declaration\n";
-        success = false;
         return 0;
     }
     string rhs = any_cast<string>(visit(ctx->expr()));
@@ -305,10 +306,8 @@ antlrcpp::Any IRVisitor::visitPreAdd_stmt(ifccParser::PreAdd_stmtContext *ctx)
 {
     string var = ctx->VAR()->getText();
     var = resolveVar(var);
-    if (!isDeclaredInScope(var))
+    if (!success)
     {
-        cerr << "error: variable '" << var << "' used before declaration\n";
-        success = false;
         return 0;
     }
     string one = cfg->create_new_tempvar(TYPE_INT);
@@ -323,10 +322,8 @@ antlrcpp::Any IRVisitor::visitPreMinus_stmt(ifccParser::PreMinus_stmtContext *ct
 {
     string var = ctx->VAR()->getText();
     var = resolveVar(var);
-    if (!isDeclaredInScope(var))
+    if (!success)
     {
-        cerr << "error: variable '" << var << "' used before declaration\n";
-        success = false;
         return 0;
     }
     string one = cfg->create_new_tempvar(TYPE_INT);
@@ -341,10 +338,8 @@ antlrcpp::Any IRVisitor::visitPostAdd_stmt(ifccParser::PostAdd_stmtContext *ctx)
 {
     string var = ctx->VAR()->getText();
     var = resolveVar(var);
-    if (!isDeclaredInScope(var))
+    if (!success)
     {
-        cerr << "error: variable '" << var << "' used before declaration\n";
-        success = false;
         return 0;
     }
     string one = cfg->create_new_tempvar(TYPE_INT);
@@ -361,10 +356,8 @@ antlrcpp::Any IRVisitor::visitPostMinus_stmt(ifccParser::PostMinus_stmtContext *
 {
     string var = ctx->VAR()->getText();
     var = resolveVar(var);
-    if (!isDeclaredInScope(var))
+    if (!success)
     {
-        cerr << "error: variable '" << var << "' used before declaration\n";
-        success = false;
         return 0;
     }
     string one = cfg->create_new_tempvar(TYPE_INT);
@@ -379,12 +372,10 @@ antlrcpp::Any IRVisitor::visitPostMinus_stmt(ifccParser::PostMinus_stmtContext *
 
 antlrcpp::Any IRVisitor::visitPtr_assign_stmt(ifccParser::Ptr_assign_stmtContext *ctx)
 {
-    string ptrName = ctx->VAR()->getText();
-    if (!isDeclaredInScope(ptrName))
+    string ptrName = resolveVar(ctx->VAR()->getText());
+
+    if (!success)
     {
-        cerr << "error: variable '" << ptrName << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
         return 0;
     }
 
@@ -685,12 +676,9 @@ antlrcpp::Any IRVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 
 antlrcpp::Any IRVisitor::visitAddrOfVar(ifccParser::AddrOfVarContext *ctx)
 {
-    string name = ctx->VAR()->getText();
-    if (!isDeclaredInScope(name))
+    string name = resolveVar(ctx->VAR()->getText());
+    if (!success)
     {
-        cerr << "error: variable '" << name << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
         string zero = cfg->create_new_tempvar(TYPE_PTR);
         cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
         return zero;
@@ -705,11 +693,8 @@ antlrcpp::Any IRVisitor::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
     string name = ctx->VAR()->getText();
     name = resolveVar(name);
-    if (!isDeclaredInScope(name))
+    if (!success)
     {
-        cerr << "error: variable '" << name << "' used before declaration in function '"
-             << currentFunction << "'\n";
-        success = false;
         string zero = cfg->create_new_tempvar(TYPE_INT);
         cfg->current_bb->add_IRInstr(IRInstr::ldconst, TYPE_INT, {zero, "0"});
         return zero;
@@ -848,11 +833,14 @@ antlrcpp::Any IRVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 
 antlrcpp::Any IRVisitor::visitBlock(ifccParser::BlockContext *ctx)
 {
-    scopeStack.push_back({});
+    // Ouvrir un nouveau scope : son numéro = nb d'enfants du parent
+    int childNum = scopeStack.back().second;
+    scopeStack.back().second++;               // le parent gagne un enfant
+    scopeStack.push_back({childNum, 0});      // nouveau scope, 0 enfants pour l'instant
+ 
     for (auto s : ctx->stmt())
-    {
         visit(s);
-    }
+ 
     scopeStack.pop_back();
     return 0;
 }
